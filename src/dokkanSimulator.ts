@@ -24,12 +24,12 @@ export abstract class DokkanSimulator {
                 appeared++;
                 currentPosition = currentRotation[configOptions.desiredPosition]
                 resetTurnStats(simCharacter);
-                configOptions.leaderSkill1(simCharacter);
-                configOptions.leaderSkill2(simCharacter);
-                simCharacter.startOfTurn()
-                simCharacter.turnStats.percentageStartOfTurnAttack += configOptions.percentageStartOfTurnAttack
-                activateLinks(simCharacter, configOptions.activeLinks)
-                console.log(simCharacter);
+                simCharacter = configOptions.leaderSkill1(simCharacter);
+                simCharacter = configOptions.leaderSkill2(simCharacter);
+                // simCharacter.startOfTurn()
+                // simCharacter.turnStats.percentageStartOfTurnAttack += configOptions.percentageStartOfTurnAttack
+                // activateLinks(simCharacter, configOptions.activeLinks)
+                // console.log(simCharacter);
 
                 // Percentage - based leader skills
                 // Flat leader skills
@@ -46,13 +46,17 @@ export abstract class DokkanSimulator {
                 // On Attack / on SA flat passives
                 // SA multiplier
                 // SA - based ATK increases are factored in here as flat additions to the SA multiplier
-                character.startOfTurn();
+                // simCharacter.startOfTurn();
+                
+                simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter)
+                // console.log('here');
+                // simCharacter.attack();
                 let turnName: string = 'turn ' + turn;
-
                 // add results to turnData
                 // @ts-ignore
                 turns[turnName] = {
-                    appearanceCount: appeared
+                    appearanceCount: appeared,
+                    attack: simCharacter.turnStats.currentAttack
                 };
                 // reset
             }
@@ -89,8 +93,8 @@ export interface SimConfiguration {
     appearances: number,
     startingPosition: number,
     desiredPosition: number,
-    leaderSkill1(char: Character): void,
-    leaderSkill2(char: Character): void,
+    leaderSkill1(char: Character): any,
+    leaderSkill2(char: Character): any,
     percentageStartOfTurnAttack: number,
     flatStartOfTurnAttack: number,
     activeLinks: string[]
@@ -114,5 +118,15 @@ function activateLinks(character: any, activeLinks: string[]) {
         }
     });
 }
+
+function calculateCurrentAttack(simCharacter: any): number {
+    // console.log('here');
+    // console.log(simCharacter);
+    let stats = simCharacter.turnStats
+    // console.log(stats);
+    return stats.currentAttack * stats.percentageLeaderAttack + stats.flatLeaderAttack
+}
+
+
 // TODO: builder pattern for config and character?
 
