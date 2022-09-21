@@ -26,7 +26,7 @@ export abstract class DokkanSimulator {
                 resetTurnStats(simCharacter);
                 simCharacter = configOptions.leaderSkill1(simCharacter);
                 simCharacter = configOptions.leaderSkill2(simCharacter);
-                // simCharacter.startOfTurn()
+                simCharacter.startOfTurn()
                 // simCharacter.turnStats.percentageStartOfTurnAttack += configOptions.percentageStartOfTurnAttack
                 // activateLinks(simCharacter, configOptions.activeLinks)
                 // console.log(simCharacter);
@@ -47,8 +47,8 @@ export abstract class DokkanSimulator {
                 // SA multiplier
                 // SA - based ATK increases are factored in here as flat additions to the SA multiplier
                 // simCharacter.startOfTurn();
-                
-                simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter)
+
+                simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter, configOptions)
                 // console.log('here');
                 // simCharacter.attack();
                 let turnName: string = 'turn ' + turn;
@@ -70,7 +70,7 @@ export abstract class DokkanSimulator {
 
 export interface Character {
     name: string,
-    startOfTurn(): any,
+    startOfTurn(char: any): any,
     baseAttack: number,
     categories: string[],
     links: {}[],
@@ -83,9 +83,9 @@ function resetTurnStats(character: any) {
         percentageLeaderAttack: 1,
         flatLeaderAttack: 0,
         kiBoost: 0,
-        percentageStartOfTurnAttack: 1,
+        percentageStartOfTurnAttack: 0,
         flatStartOfTurnAttack: 0,
-        percentageLinksBoostAttack: 1,
+        percentageLinksBoostAttack: 0,
     }
 }
 
@@ -119,12 +119,9 @@ function activateLinks(character: any, activeLinks: string[]) {
     });
 }
 
-function calculateCurrentAttack(simCharacter: any): number {
-    // console.log('here');
-    // console.log(simCharacter);
+function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): number {
     let stats = simCharacter.turnStats
-    // console.log(stats);
-    return stats.currentAttack * stats.percentageLeaderAttack + stats.flatLeaderAttack
+    return (stats.currentAttack * stats.percentageLeaderAttack + stats.flatLeaderAttack) * (1 + stats.percentageStartOfTurnAttack + config.percentageStartOfTurnAttack) + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack
 }
 
 
