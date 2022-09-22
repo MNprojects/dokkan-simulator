@@ -98,9 +98,17 @@ export interface SimConfiguration {
     percentageStartOfTurnAttack: number,
     flatStartOfTurnAttack: number,
     activeLinks: string[]
+    obtainKiSphereAttack: kiSpheres,
 
 }
-
+export interface kiSpheres {
+    TEQ: number,
+    AGL: number,
+    STR: number,
+    PHY: number,
+    INT: number,
+    RBW: number
+}
 interface SimResults {
     summary: Object,
     turnData: Object,

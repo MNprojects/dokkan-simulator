@@ -22,6 +22,7 @@ before(function () {
         percentageStartOfTurnAttack: 0,
         flatStartOfTurnAttack: 0,
         activeLinks: ["Super Saiyan"],
+        obtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 }
     }
 })
 
@@ -108,20 +109,35 @@ describe('Single Character Simulation', function () {
         }
         // 105,600
         mixedConfig.percentageStartOfTurnAttack = 2.3;
-        
-        // 172,600
-        mixedConfig.flatStartOfTurnAttack = 3000;
+
         let mixedChar = Object.assign([], baseCharacter);
         mixedChar.startOfTurn = function () {
             // @ts-ignore
             this.turnStats.percentageStartOfTurnAttack = 2      // 169,600
             // @ts-ignore
-            this.turnStats.flatStartOfTurnAttack = 1000     // 173,600
+            this.turnStats.flatStartOfTurnAttack = 1000     // 170,600
         }
+        // 173,600
+        mixedConfig.flatStartOfTurnAttack = 3000;
 
         let result = DokkanSimulator.singleCharacterSimulation(mixedChar, mixedConfig)
         // @ts-ignore
         equal(result.turnData["turn 1"].attack, 173600);
+    });
+    it('should modify attack by nuking passives', function () {
+        let nukePassiveChar = Object.assign([], baseCharacter);
+        nukePassiveChar.startOfTurn = function () {
+            // @ts-ignore
+            this.obtainKiSpheres = function (collectedKiSpheres: kiSpheres) {
+                collectedKiSpheres.STR
+            }
+        }
+        let nukePassiveConfig = Object.assign([], config);
+        nukePassiveConfig.obtainKiSphereAttack = { TEQ: 0.1, AGL: 0.2, STR: 0.3, PHY: 0.4, INT: 0.5, RBW: 0.6 };
+
+        let result = DokkanSimulator.singleCharacterSimulation(nukePassiveChar, nukePassiveConfig)
+        // @ts-ignore
+        equal(result.turnData["turn 1"].attack, 14000);
     });
 
 });
