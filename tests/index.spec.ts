@@ -14,12 +14,12 @@ before(function () {
         links: [],
         type: 'TEQ',
         collectKiSpheres(kiSpheres: kiSpheres) {
-            this.turnStats.kiBoost += kiSpheres.TEQ * 2
-            this.turnStats.kiBoost += kiSpheres.AGL
-            this.turnStats.kiBoost += kiSpheres.STR
-            this.turnStats.kiBoost += kiSpheres.PHY
-            this.turnStats.kiBoost += kiSpheres.INT
-            this.turnStats.kiBoost += kiSpheres.RBW
+            let kiBoost = 0;
+            Object.entries(kiSpheres).forEach(
+                ([key, value]) => {
+                    kiBoost += value;
+                });
+            kiBoost += kiSpheres.TEQ
         },
     }
     config = {
@@ -31,7 +31,8 @@ before(function () {
         percentageStartOfTurnAttack: 0,
         flatStartOfTurnAttack: 0,
         activeLinks: ["Super Saiyan"],
-        obtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 }
+        percentageObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+        flatObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
     }
 })
 
@@ -133,23 +134,20 @@ describe('Single Character Simulation', function () {
         // @ts-ignore
         equal(result.turnData["turn 1"].attack, 173600);
     });
-    it('should modify attack by nuking passives', function () {
+    it('should modify attack by percentage nuking passives', function () {
         let nukePassiveChar = Object.assign([], baseCharacter);
-        nukePassiveChar.startOfTurn = function () {
-
-            this.collectKiSpheres = function (collectedKiSpheres: kiSpheres) {
-                let kiBoost = 0;
-                Object.entries(collectedKiSpheres).forEach(
-                    ([key, value]) => {
-                        kiBoost += value;
-                        this.turnStats.percentageStartOfTurnAttack += this.turnStats.percentageKiSphereAttack[key] * value
-                    });
-                kiBoost += collectedKiSpheres.TEQ
-            }
-
+        nukePassiveChar.collectKiSpheres = function (collectedKiSpheres: kiSpheres) {
+            let kiBoost = 0;
+            Object.entries(collectedKiSpheres).forEach(
+                ([key, value]) => {
+                    kiBoost += value;
+                    this.turnStats.percentageStartOfTurnAttack += this.turnStats.percentageKiSphereAttack[key] * value
+                });
+            kiBoost += collectedKiSpheres.TEQ
         }
+
         let nukePassiveConfig = Object.assign([], config);
-        nukePassiveConfig.obtainKiSphereAttack = { TEQ: 0.1, AGL: 0.2, STR: 0.3, PHY: 0.4, INT: 0.5, RBW: 0.6 };
+        nukePassiveConfig.percentageObtainKiSphereAttack = { TEQ: 0.1, AGL: 0.2, STR: 0.3, PHY: 0.4, INT: 0.5, RBW: 0.6 };
 
         let result = DokkanSimulator.singleCharacterSimulation(nukePassiveChar, nukePassiveConfig)
         // section finds the number of orbs actually collected to allow them to be randomised but still work for the test
@@ -157,10 +155,36 @@ describe('Single Character Simulation', function () {
         // @ts-ignore
         Object.entries(result.turnData["turn 1"].kiSpheres).forEach(([key, value]) =>
             // @ts-ignore
-            expectedAttackBoost += nukePassiveConfig.obtainKiSphereAttack[key] * value
+            expectedAttackBoost += nukePassiveConfig.percentageObtainKiSphereAttack[key] * value
         )
         // @ts-ignore
         equal(result.turnData["turn 1"].attack, nukePassiveChar.baseAttack * (1 + expectedAttackBoost));
+    });
+    it('should modify attack by flat nuking passives', function () {
+        let nukeFlatPassiveChar = Object.assign([], baseCharacter);
+        nukeFlatPassiveChar.collectKiSpheres = function (collectedKiSpheres: kiSpheres) {
+            let kiBoost = 0;
+            Object.entries(collectedKiSpheres).forEach(
+                ([key, value]) => {
+                    kiBoost += value;
+                    this.turnStats.flatStartOfTurnAttack += this.turnStats.flatKiSphereAttack[key] * value
+                });
+            kiBoost += collectedKiSpheres.TEQ
+        }
+
+        let nukePassiveConfig = Object.assign([], config);
+        nukePassiveConfig.flatObtainKiSphereAttack = { TEQ: 10, AGL: 205, STR: 3000, PHY: 4000, INT: 50000, RBW: 6 };
+
+        let result = DokkanSimulator.singleCharacterSimulation(nukeFlatPassiveChar, nukePassiveConfig)
+        // section finds the number of orbs actually collected to allow them to be randomised but still work for the test
+        let expectedAttackBoost: number = 0
+        // @ts-ignore
+        Object.entries(result.turnData["turn 1"].kiSpheres).forEach(([key, value]) =>
+            // @ts-ignore
+            expectedAttackBoost += nukePassiveConfig.flatObtainKiSphereAttack[key] * value
+        )
+        // @ts-ignore
+        equal(result.turnData["turn 1"].attack, nukeFlatPassiveChar.baseAttack + expectedAttackBoost);
     });
 
 });

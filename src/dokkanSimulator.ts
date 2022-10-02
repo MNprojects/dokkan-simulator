@@ -66,7 +66,7 @@ export abstract class DokkanSimulator {
             }
         }
         results.turnData = turns
-        console.log(results);
+        // console.log(results);
 
         return results
     }
@@ -87,19 +87,14 @@ export interface Character {
 function resetTurnStats(character: any) {
     character.turnStats = {
         currentAttack: character.baseAttack,
-        percentageLeaderAttack: 1,
+        percentageLeaderAttack: 0,
         flatLeaderAttack: 0,
         kiBoost: 0,
         percentageStartOfTurnAttack: 0,
         flatStartOfTurnAttack: 0,
         percentageLinksBoostAttack: 0,
-        // percentageTEQKiSphereAttack: 0,
-        // percentageAGLKiSphereAttack: 0,
-        // percentageSTRKiSphereAttack: 0,
-        // percentagePHYKiSphereAttack: 0,
-        // percentageINTKiSphereAttack: 0,
-        // percentageRBWKiSphereAttack: 0,
         percentageKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+        flatKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
     }
 }
 
@@ -112,7 +107,8 @@ export interface SimConfiguration {
     percentageStartOfTurnAttack: number,
     flatStartOfTurnAttack: number,
     activeLinks: string[]
-    obtainKiSphereAttack: kiSpheres,
+    percentageObtainKiSphereAttack: kiSpheres,
+    flatObtainKiSphereAttack: kiSpheres,
 
 }
 export interface kiSpheres {
@@ -143,7 +139,7 @@ function activateLinks(character: any, activeLinks: string[]) {
 
 function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): number {
     let stats = simCharacter.turnStats
-    return (stats.currentAttack * stats.percentageLeaderAttack + stats.flatLeaderAttack) * (1 + stats.percentageStartOfTurnAttack + config.percentageStartOfTurnAttack) + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack
+    return (stats.currentAttack * (1 + stats.percentageLeaderAttack) + stats.flatLeaderAttack) * (1 + stats.percentageStartOfTurnAttack + config.percentageStartOfTurnAttack) + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack
 }
 
 
@@ -155,7 +151,8 @@ function findBestKiSphereCollection(simCharacter: any, turnConfig: SimConfigurat
 }
 
 function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any) {
-    simCharacter.turnStats.percentageKiSphereAttack = configOptions.obtainKiSphereAttack
+    simCharacter.turnStats.percentageKiSphereAttack = configOptions.percentageObtainKiSphereAttack
+    simCharacter.turnStats.flatKiSphereAttack = configOptions.flatObtainKiSphereAttack
 }
 // TODO: builder pattern for config and character?
 
