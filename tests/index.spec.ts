@@ -30,7 +30,7 @@ before(function () {
         leaderSkill2(char: any) { return char },
         percentageStartOfTurnAttack: 0,
         flatStartOfTurnAttack: 0,
-        activeLinks: ["Super Saiyan"],
+        activeLinks: [],
         percentageObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
         flatObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
     }
@@ -189,16 +189,25 @@ describe('Single Character Simulation', function () {
 
 });
 
-//     it('should have attack modified by the  links', function () {
-//         let linksCharacter = Object.assign({}, baseCharacter);
-//         linksCharacter.links = [{ "Super Saiyan": function (char: any) { char.turnStats.percentageLinksBoostAttack += 2.1 } }]
+it('should have attack modified by the active links', function () {
+    let linksCharacter = Object.assign({}, baseCharacter);
+    linksCharacter.links = [
+        {
+            "Super Saiyan": function (char: any) {
+                char.turnStats.percentageLinksBoostAttack += 0.1
+            }
+        },
+        { "Saiyan Roar": function (char: any) { char.turnStats.percentageLinksBoostAttack += 0.25 } },
+        { "Prepared for Battle": function (char: any) { char.turnStats.percentageLinksBoostAttack += 0.3 } },
+    ]
 
+    let activeLinksConfig = Object.assign([], config);
+    activeLinksConfig.activeLinks = ["Super Saiyan", "Saiyan Roar"]
 
+    let result = DokkanSimulator.singleCharacterSimulation(linksCharacter, activeLinksConfig)
 
-//         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
-//         // console.log(result);
-
-//         // equal(Object.keys(result.turnData).length, expectedAppearances);
-//     });
+    // @ts-ignore
+    equal(result.turnData["turn 1"].attack, 13500);
+});
 
 

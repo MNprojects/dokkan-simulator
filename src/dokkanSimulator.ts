@@ -24,25 +24,24 @@ export abstract class DokkanSimulator {
                 appeared++;
                 currentPosition = currentRotation[configOptions.desiredPosition]
                 resetTurnStats(simCharacter);
+                // Percentage - based leader skills - done
+                // Flat leader skills - done
                 simCharacter = configOptions.leaderSkill1(simCharacter);
                 simCharacter = configOptions.leaderSkill2(simCharacter);
+
+                // Percentage - based start of turn passives - done
+                // This is where start of turn + ATK support passives go. - done
+                // This is also where nuking style passives are factored in. - done
+                // Flat start of turn passives - done
                 simCharacter.startOfTurn()
                 applyConfigPassives(configOptions, simCharacter)
                 let collectedKiSpheres = findBestKiSphereCollection(simCharacter, configOptions)
                 simCharacter.collectKiSpheres(collectedKiSpheres)
-                // simCharacter.turnStats.percentageStartOfTurnAttack += configOptions.percentageStartOfTurnAttack
-                // activateLinks(simCharacter, configOptions.activeLinks)
-                // console.log(simCharacter);
 
-                // Percentage - based leader skills
-                // Flat leader skills
-                // Percentage - based start of turn passives
-                // This is where start of turn + ATK support passives go.
-                // This is also where nuking style passives are factored in.
-                // Flat start of turn passives
-                // Percentage - based links
-                // Flat links
-                // All flat links are added in here, even if they say they don't activate until the unit supers (such as Kamehameha).
+                // Links - even if they say they don't activate until the unit supers (such as Kamehameha).
+                activateLinks(simCharacter, configOptions.activeLinks)
+
+
                 // Ki multiplier
                 // Build - up passives
                 // On Attack / on SA percentage - based passives
@@ -139,7 +138,11 @@ function activateLinks(character: any, activeLinks: string[]) {
 
 function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): number {
     let stats = simCharacter.turnStats
-    return (stats.currentAttack * (1 + stats.percentageLeaderAttack) + stats.flatLeaderAttack) * (1 + stats.percentageStartOfTurnAttack + config.percentageStartOfTurnAttack) + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack
+    let result = ((stats.currentAttack * (1 + stats.percentageLeaderAttack) + stats.flatLeaderAttack)
+        * (1 + stats.percentageStartOfTurnAttack + config.percentageStartOfTurnAttack)
+        + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack)
+        * (1 + stats.percentageLinksBoostAttack);
+    return result
 }
 
 
