@@ -27,6 +27,9 @@ export abstract class DokkanSimulator {
                 simCharacter = configOptions.leaderSkill1(simCharacter);
                 simCharacter = configOptions.leaderSkill2(simCharacter);
                 simCharacter.startOfTurn()
+                applyConfigPassives(configOptions, simCharacter)
+                let collectedKiSpheres = findBestKiSphereCollection(simCharacter, configOptions)
+                simCharacter.collectKiSpheres(collectedKiSpheres)
                 // simCharacter.turnStats.percentageStartOfTurnAttack += configOptions.percentageStartOfTurnAttack
                 // activateLinks(simCharacter, configOptions.activeLinks)
                 // console.log(simCharacter);
@@ -56,12 +59,14 @@ export abstract class DokkanSimulator {
                 // @ts-ignore
                 turns[turnName] = {
                     appearanceCount: appeared,
-                    attack: simCharacter.turnStats.currentAttack
+                    attack: simCharacter.turnStats.currentAttack,
+                    kiSpheres: collectedKiSpheres,
                 };
                 // reset
             }
         }
         results.turnData = turns
+        console.log(results);
 
         return results
     }
@@ -70,7 +75,9 @@ export abstract class DokkanSimulator {
 
 export interface Character {
     name: string,
-    startOfTurn(char: any): any,
+    type: string,
+    startOfTurn(): void,
+    collectKiSpheres(kiSpheres: kiSpheres): void,
     baseAttack: number,
     categories: string[],
     links: {}[],
@@ -86,6 +93,13 @@ function resetTurnStats(character: any) {
         percentageStartOfTurnAttack: 0,
         flatStartOfTurnAttack: 0,
         percentageLinksBoostAttack: 0,
+        // percentageTEQKiSphereAttack: 0,
+        // percentageAGLKiSphereAttack: 0,
+        // percentageSTRKiSphereAttack: 0,
+        // percentagePHYKiSphereAttack: 0,
+        // percentageINTKiSphereAttack: 0,
+        // percentageRBWKiSphereAttack: 0,
+        percentageKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
     }
 }
 
@@ -133,5 +147,15 @@ function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): nu
 }
 
 
+
+function findBestKiSphereCollection(simCharacter: any, turnConfig: SimConfiguration): kiSpheres {
+    // TODO actually implement something - should probably calc the attack from a few different options to mimic user choices on board
+    // TODO (but team sim need to lower chances based on what is actually taken to not favour mono teams)
+    return { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 5, RBW: 1 }
+}
+
+function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any) {
+    simCharacter.turnStats.percentageKiSphereAttack = configOptions.obtainKiSphereAttack
+}
 // TODO: builder pattern for config and character?
 
