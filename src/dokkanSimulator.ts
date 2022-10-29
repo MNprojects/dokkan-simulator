@@ -8,6 +8,15 @@ export abstract class DokkanSimulator {
         let teamArray: any[] = [0, 1, 3, 4, 2, 5, 6];
         let currentPosition = configOptions.startingPosition;
         let simCharacter: any = character
+        simCharacter.battleStats = {
+            stackAttack: 0,
+            attackPerAttackPerformed: 0,
+            attackPerAttackReceived: 0,
+            attackPerAttackEvaded: 0,
+            attackPerTurn: 0,
+            attackPerEnemy: 0,
+            attackPerFinalBlow: 0
+        }
 
         for (let turn = 1; appeared < configOptions.appearances; turn++) {
             let currentRotation: any[] = []
@@ -41,27 +50,29 @@ export abstract class DokkanSimulator {
                 // Links - even if they say they don't activate until the unit supers (such as Kamehameha).
                 activateLinks(simCharacter, configOptions.activeLinks)
 
-
                 // Ki multiplier
+                simCharacter.calculateKiMultiplier()
                 // Build - up passives
                 // On Attack / on SA percentage - based passives
                 // On Attack / on SA flat passives
+                simCharacter.onAttack();
+
                 // SA multiplier
                 // SA - based ATK increases are factored in here as flat additions to the SA multiplier
-                // simCharacter.startOfTurn();
+                simCharacter.turnStats.superAttackDetails = selectSuperAttack(simCharacter)
+                console.log(simCharacter.turnStats.superAttackDetails);
 
                 simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter, configOptions)
-                // console.log('here');
-                // simCharacter.attack();
-                let turnName: string = 'turn ' + turn;
+
+
                 // add results to turnData
+                let turnName: string = 'turn ' + turn;
                 // @ts-ignore
                 turns[turnName] = {
                     appearanceCount: appeared,
                     attack: simCharacter.turnStats.currentAttack,
                     kiSpheres: collectedKiSpheres,
                 };
-                // reset
             }
         }
         results.turnData = turns
@@ -88,12 +99,24 @@ function resetTurnStats(character: any) {
         currentAttack: character.baseAttack,
         percentageLeaderAttack: 0,
         flatLeaderAttack: 0,
-        kiBoost: 0,
+        currentKi: 0,
+        currentKiMultiplier: 0,
         percentageStartOfTurnAttack: 0,
         flatStartOfTurnAttack: 0,
-        percentageLinksBoostAttack: 0,
+        percentageLinksAttack: 0,
         percentageKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
         flatKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+        superAttackDetails: {
+            multiplier: 0.0,
+            attackRaise: {},
+            extraCritChance: 0,
+            disableGuard: false,
+            stun: {},
+            seal: {},
+            effectiveAgainstAll: false,
+            debuffTargetDEF: {}
+        },
+
     }
 }
 
@@ -138,10 +161,15 @@ function activateLinks(character: any, activeLinks: string[]) {
 
 function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): number {
     let stats = simCharacter.turnStats
-    let result = ((stats.currentAttack * (1 + stats.percentageLeaderAttack) + stats.flatLeaderAttack)
+    let battleStats = simCharacter.battleStats
+    let result = ((stats.currentAttack
+        * (1 + stats.percentageLeaderAttack) + stats.flatLeaderAttack)
         * (1 + stats.percentageStartOfTurnAttack + config.percentageStartOfTurnAttack)
         + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack)
-        * (1 + stats.percentageLinksBoostAttack);
+        * (1 + stats.percentageLinksAttack)
+        * (1 + stats.currentKiMultiplier)
+        * (1 + battleStats.stackAttack + battleStats.attackPerAttackPerformed + battleStats.attackPerAttackReceived + battleStats.attackPerAttackEvaded + battleStats.attackPerTurn + battleStats.attackPerEnemy + battleStats.attackPerFinalBlow)
+        * (1 + stats.superAttackDetails.multiplier)
     return result
 }
 
@@ -158,4 +186,22 @@ function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any)
     simCharacter.turnStats.flatKiSphereAttack = configOptions.flatObtainKiSphereAttack
 }
 // TODO: builder pattern for config and character?
+
+function selectSuperAttack(simChar: any) {
+    let highestSANum = 0;
+    let saDetails;
+    simChar.superAttacks.forEach((superAttack: any) => {
+        if (simChar.turnStats.currentKi >= parseInt(Object.keys(superAttack)[0]) && parseInt(Object.keys(superAttack)[0]) >= highestSANum) {
+            highestSANum = parseInt(Object.keys(superAttack)[0]);
+            saDetails = Object.values(superAttack)[0]
+        }
+    });
+    if (saDetails === undefined) {
+        saDetails = {
+            multiplier: 0
+        }
+    }
+
+    return saDetails;
+}
 

@@ -20,10 +20,32 @@ before(function () {
                     kiBoost += value;
                 });
             kiBoost += kiSpheres.TEQ
+            if (this.turnStats.currentKi + kiBoost >= 12) {
+                this.turnStats.currentKi = 12;
+            } else {
+                this.turnStats.currentKi += kiBoost;
+            }
         },
+        calculateKiMultiplier() { },
+        onAttack() { },
+        superAttacks: [
+            {
+                12: {
+                    multiplier: 0.0,
+                    attackRaise: {},
+                    extraCritChance: 0,
+                    disableGuard: false,
+                    stun: {},
+                    seal: {},
+                    effectiveAgainstAll: false,
+                    debuffTargetDEF: {}
+                }
+            }
+        ],
+
     }
     config = {
-        appearances: 1,
+        appearances: 3,
         startingPosition: 0,
         desiredPosition: 1,
         leaderSkill1(char: any) { return char },
@@ -166,10 +188,16 @@ describe('Single Character Simulation', function () {
             let kiBoost = 0;
             Object.entries(collectedKiSpheres).forEach(
                 ([key, value]) => {
-                    kiBoost += value;
                     this.turnStats.flatStartOfTurnAttack += this.turnStats.flatKiSphereAttack[key] * value
+                    kiBoost += value;
                 });
+
             kiBoost += collectedKiSpheres.TEQ
+            if (kiBoost <= 12) {
+                this.turnStats.currentKi = 12;
+            } else {
+                this.turnStats.currentKi = kiBoost;
+            }
         }
 
         let nukePassiveConfig = Object.assign([], config);
@@ -186,28 +214,81 @@ describe('Single Character Simulation', function () {
         // @ts-ignore
         equal(result.turnData["turn 1"].attack, nukeFlatPassiveChar.baseAttack + expectedAttackBoost);
     });
+    it('should have attack modified by the active links', function () {
+        let linksCharacter = Object.assign({}, baseCharacter);
+        linksCharacter.links = [
+            {
+                "Super Saiyan": function (char: any) {
+                    char.turnStats.percentageLinksAttack += 0.1
+                }
+            },
+            { "Saiyan Roar": function (char: any) { char.turnStats.percentageLinksAttack += 0.25 } },
+            { "Prepared for Battle": function (char: any) { char.turnStats.percentageLinksAttack += 0.3 } },
+        ]
 
+        let activeLinksConfig = Object.assign([], config);
+        activeLinksConfig.activeLinks = ["Super Saiyan", "Saiyan Roar"]
+
+        let result = DokkanSimulator.singleCharacterSimulation(linksCharacter, activeLinksConfig)
+
+        // @ts-ignore
+        equal(result.turnData["turn 1"].attack, 13500);
+    });
+    it('should have attack modified by the ki multiplier', function () {
+        let kiMultiplierCharacter = Object.assign({}, baseCharacter);
+        kiMultiplierCharacter.startOfTurn = function () {
+            this.turnStats.currentKi += 12          
+        }
+        kiMultiplierCharacter.calculateKiMultiplier = function () {
+            let twelveKiMultiplier = 0.5
+            let oneHundredPercentageThreshold = 4
+            let multiplierPerKi = (twelveKiMultiplier - 1) / (12 - oneHundredPercentageThreshold);
+            this.turnStats.currentKiMultiplier = 1 + ((this.turnStats.currentKi - oneHundredPercentageThreshold) * multiplierPerKi)
+        }
+
+        let result = DokkanSimulator.singleCharacterSimulation(kiMultiplierCharacter, config)
+
+        // @ts-ignore
+        equal(result.turnData["turn 1"].attack, 15000);
+    });
+    it('should have attack modified by build up passive', function () {
+        let buildUpCharacter = Object.assign({}, baseCharacter);
+        buildUpCharacter.onAttack = function () {
+            // unrealistic, should have logic to set these at the appropriate times to appropriate values
+            this.battleStats.stackAttack += 0.1
+            this.battleStats.attackPerAttackPerformed = 0.2,
+                this.battleStats.attackPerAttackReceived = 0.3,
+                this.battleStats.attackPerAttackEvaded = 0.4,
+                this.battleStats.attackPerTurn = 0.5,
+                this.battleStats.attackPerEnemy = 0.6,
+                this.battleStats.attackPerFinalBlow = 0.7
+        }
+
+        let result = DokkanSimulator.singleCharacterSimulation(buildUpCharacter, config)
+
+        // @ts-ignore
+        equal(result.turnData["turn 1"].attack, 38000);
+    });
+    it('should have attack modified by SA modifier if ki threshold is reached', function () {
+        let SACharacter = Object.assign({}, baseCharacter);
+        SACharacter.superAttacks = [
+            {
+                12: {
+                    multiplier: 0.5,
+                }
+            },{18:{}}
+        ]
+
+        SACharacter.startOfTurn = function () {
+            this.turnStats.currentKi += 12          
+        }
+
+        let result = DokkanSimulator.singleCharacterSimulation(SACharacter, config)
+
+        // @ts-ignore
+        equal(result.turnData["turn 1"].attack, 15000);
+    });
 });
 
-it('should have attack modified by the active links', function () {
-    let linksCharacter = Object.assign({}, baseCharacter);
-    linksCharacter.links = [
-        {
-            "Super Saiyan": function (char: any) {
-                char.turnStats.percentageLinksBoostAttack += 0.1
-            }
-        },
-        { "Saiyan Roar": function (char: any) { char.turnStats.percentageLinksBoostAttack += 0.25 } },
-        { "Prepared for Battle": function (char: any) { char.turnStats.percentageLinksBoostAttack += 0.3 } },
-    ]
-
-    let activeLinksConfig = Object.assign([], config);
-    activeLinksConfig.activeLinks = ["Super Saiyan", "Saiyan Roar"]
-
-    let result = DokkanSimulator.singleCharacterSimulation(linksCharacter, activeLinksConfig)
-
-    // @ts-ignore
-    equal(result.turnData["turn 1"].attack, 13500);
-});
 
 
