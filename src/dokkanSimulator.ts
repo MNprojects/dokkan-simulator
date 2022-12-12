@@ -31,57 +31,78 @@ export abstract class DokkanSimulator {
             // if the sim character is on rotation
             if (currentRotation.includes(currentPosition)) {
                 appeared++;
-                currentPosition = currentRotation[configOptions.desiredPosition]
-                resetTurnStats(simCharacter);
-                // Percentage - based leader skills - done
-                // Flat leader skills - done
-                simCharacter = configOptions.leaderSkill1(simCharacter);
-                simCharacter = configOptions.leaderSkill2(simCharacter);
+                currentPosition = currentRotation[configOptions.desiredPosition];
 
-                // Percentage - based start of turn passives - done
-                // This is where start of turn + ATK support passives go. - done
-                // This is also where nuking style passives are factored in. - done
-                // Flat start of turn passives - done
-                simCharacter.startOfTurn()
-                applyConfigPassives(configOptions, simCharacter)
-                let collectedKiSpheres = findBestKiSphereCollection(simCharacter, configOptions)
-                simCharacter.collectKiSpheres(collectedKiSpheres)
-
-                // Links - even if they say they don't activate until the unit supers (such as Kamehameha).
-                activateLinks(simCharacter, configOptions.activeLinks)
-
-                // Ki multiplier
-                simCharacter.calculateKiMultiplier()
-                // Build - up passives
-                // On Attack / on SA percentage - based passives
-                // On Attack / on SA flat passives
-                simCharacter.onAttack();
-
-                // SA multiplier
-                // SA - based ATK increases are factored in here as flat additions to the SA multiplier
-                simCharacter.turnStats.superAttackDetails = selectSuperAttack(simCharacter)
-                console.log(simCharacter.turnStats.superAttackDetails);
-
-                simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter, configOptions)
-
+                // Collect Ki Spheres
+                let collectedKiSpheres = findBestKiSphereCollection(simCharacter, configOptions);
 
                 // add results to turnData
                 let turnName: string = 'turn ' + turn;
                 // @ts-ignore
                 turns[turnName] = {
                     appearanceCount: appeared,
-                    attack: simCharacter.turnStats.currentAttack,
                     kiSpheres: collectedKiSpheres,
-                };
+                    attacks: {}
+                }
+                // Attack loop
+                let attack = attackLoop(simCharacter, configOptions, collectedKiSpheres);
+                let attackCount = 1;
+                let additionalAttack = calculateAdditionalAttack(simCharacter, attackCount)
+                if (additionalAttack) {
+                    attackLoop(simCharacter, configOptions, collectedKiSpheres);
+                }
+
+                // @ts-ignore
+                turns[turnName].attacks[attackCount] = simCharacter.turnStats.currentAttack;
+                console.log(turns);
+
+
             }
         }
         results.turnData = turns
         // console.log(results);
 
         return results
+
+
     }
 }
+function attackLoop(simCharacter: any, configOptions: SimConfiguration, collectedKiSpheres: kiSpheres) {
+    resetTurnStats(simCharacter);
+    // Percentage - based leader skills - done
+    // Flat leader skills - done
+    simCharacter = configOptions.leaderSkill1(simCharacter);
+    simCharacter = configOptions.leaderSkill2(simCharacter);
 
+    // Percentage - based start of turn passives - done
+    // This is where start of turn + ATK support passives go. - done
+    // This is also where nuking style passives are factored in. - done
+    // Flat start of turn passives - done
+    simCharacter.startOfTurn();
+    applyConfigPassives(configOptions, simCharacter);
+
+    simCharacter.collectKiSpheres(collectedKiSpheres);
+
+    // Links - even if they say they don't activate until the unit supers (such as Kamehameha).
+    activateLinks(simCharacter, configOptions.activeLinks);
+
+    // Ki multiplier
+    simCharacter.calculateKiMultiplier();
+
+    // Build - up passives
+    // On Attack / on SA percentage - based passives
+    // On Attack / on SA flat passives
+    simCharacter.onAttack();
+
+    // SA multiplier
+    // SA - based ATK increases are factored in here as flat additions to the SA multiplier
+    simCharacter.turnStats.superAttackDetails = selectSuperAttack(simCharacter);
+    // console.log(simCharacter.turnStats.superAttackDetails);
+    simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter, configOptions);
+
+
+    return 10000
+}
 
 export interface Character {
     name: string,
@@ -116,6 +137,7 @@ function resetTurnStats(character: any) {
             effectiveAgainstAll: false,
             debuffTargetDEF: {}
         },
+        additionalAttack: false,
 
     }
 }
@@ -203,5 +225,15 @@ function selectSuperAttack(simChar: any) {
     }
 
     return saDetails;
+}
+
+function calculateAdditionalAttack(simCharacter: any, chances: number) {
+    for (let index = 0; index < chances; index++) {
+        let rng = Math.random()
+        if (simCharacter.additionalAttackChance <= rng) {
+            return true
+        }
+    }
+    return false
 }
 
