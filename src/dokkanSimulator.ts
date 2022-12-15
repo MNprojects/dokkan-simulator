@@ -32,7 +32,7 @@ export abstract class DokkanSimulator {
             if (currentRotation.includes(currentPosition)) {
                 appeared++;
                 currentPosition = currentRotation[configOptions.desiredPosition];
-
+                resetTurnStats(simCharacter);
                 // Collect Ki Spheres
                 let collectedKiSpheres = findBestKiSphereCollection(simCharacter, configOptions);
 
@@ -45,30 +45,42 @@ export abstract class DokkanSimulator {
                     attacks: {}
                 }
                 // Attack loop
-                let attack = attackLoop(simCharacter, configOptions, collectedKiSpheres);
                 let attackCount = 1;
-                let additionalAttack = calculateAdditionalAttack(simCharacter, attackCount)
-                if (additionalAttack) {
-                    attackLoop(simCharacter, configOptions, collectedKiSpheres);
-                }
+                // TODO: refactor to a single attack loop rather than all this additionals work
+                let additionalAttacks: string[] = simCharacter.passiveAdditionalAttacks(configOptions)
+                additionalAttacks = Object.values(additionalAttacks)
+                let attack = attackLoop(simCharacter, configOptions, collectedKiSpheres);
 
                 // @ts-ignore
-                turns[turnName].attacks[attackCount] = simCharacter.turnStats.currentAttack;
-                console.log(turns);
+                turns[turnName].attacks[attackCount] = attack;
 
+                let additional = calculateAdditionalAttack(simCharacter, attackCount)
 
+                if (additional !== undefined) {
+                    additionalAttacks.push(additional)
+                }
+
+                additionalAttacks.forEach(additional => {
+                    resetTurnStats(simCharacter);
+                    if (additional === "super") {
+                        attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, true);
+                    } else if (additional === "normal") {
+                        attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, false);
+                    }
+                    attackCount++
+                    // @ts-ignore
+                    turns[turnName].attacks[attackCount] = attack;
+                });
             }
         }
         results.turnData = turns
-        // console.log(results);
-
         return results
 
 
     }
 }
-function attackLoop(simCharacter: any, configOptions: SimConfiguration, collectedKiSpheres: kiSpheres) {
-    resetTurnStats(simCharacter);
+function attackLoop(simCharacter: any, configOptions: SimConfiguration, collectedKiSpheres: kiSpheres, superAdditional?: boolean) {
+
     // Percentage - based leader skills - done
     // Flat leader skills - done
     simCharacter = configOptions.leaderSkill1(simCharacter);
@@ -78,9 +90,9 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
     // This is where start of turn + ATK support passives go. - done
     // This is also where nuking style passives are factored in. - done
     // Flat start of turn passives - done
+    
     simCharacter.startOfTurn();
     applyConfigPassives(configOptions, simCharacter);
-
     simCharacter.collectKiSpheres(collectedKiSpheres);
 
     // Links - even if they say they don't activate until the unit supers (such as Kamehameha).
@@ -96,12 +108,12 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
 
     // SA multiplier
     // SA - based ATK increases are factored in here as flat additions to the SA multiplier
-    simCharacter.turnStats.superAttackDetails = selectSuperAttack(simCharacter);
-    // console.log(simCharacter.turnStats.superAttackDetails);
+
+    simCharacter.turnStats.superAttackDetails = selectSuperAttack(simCharacter, superAdditional!);
+
     simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter, configOptions);
-
-
-    return 10000
+    
+    return simCharacter.turnStats.currentAttack
 }
 
 export interface Character {
@@ -189,7 +201,7 @@ function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): nu
         * (1 + stats.percentageStartOfTurnAttack + config.percentageStartOfTurnAttack)
         + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack)
         * (1 + stats.percentageLinksAttack)
-        * (1 + stats.currentKiMultiplier)
+        * (1 + stats.currentKiMultiplier) // TODO: For not super attacks?
         * (1 + battleStats.stackAttack + battleStats.attackPerAttackPerformed + battleStats.attackPerAttackReceived + battleStats.attackPerAttackEvaded + battleStats.attackPerTurn + battleStats.attackPerEnemy + battleStats.attackPerFinalBlow)
         * (1 + stats.superAttackDetails.multiplier)
     return result
@@ -209,15 +221,29 @@ function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any)
 }
 // TODO: builder pattern for config and character?
 
-function selectSuperAttack(simChar: any) {
+function selectSuperAttack(simChar: any, superAdditional?: boolean) {
     let highestSANum = 0;
     let saDetails;
-    simChar.superAttacks.forEach((superAttack: any) => {
-        if (simChar.turnStats.currentKi >= parseInt(Object.keys(superAttack)[0]) && parseInt(Object.keys(superAttack)[0]) >= highestSANum) {
-            highestSANum = parseInt(Object.keys(superAttack)[0]);
-            saDetails = Object.values(superAttack)[0]
-        }
-    });
+
+    if (superAdditional) {
+        highestSANum = 24
+        simChar.superAttacks.forEach((superAttack: any) => {
+            if (simChar.turnStats.currentKi >= parseInt(Object.keys(superAttack)[0]) && parseInt(Object.keys(superAttack)[0]) <= highestSANum) {
+                highestSANum = parseInt(Object.keys(superAttack)[0]);
+                saDetails = Object.values(superAttack)[0]
+                
+            }
+        });
+    } else {
+        simChar.superAttacks.forEach((superAttack: any) => {
+            if (simChar.turnStats.currentKi >= parseInt(Object.keys(superAttack)[0]) && parseInt(Object.keys(superAttack)[0]) >= highestSANum) {
+                highestSANum = parseInt(Object.keys(superAttack)[0]);
+                saDetails = Object.values(superAttack)[0]
+            }
+        });
+    }
+    
+    // if no Ki threshold is reached
     if (saDetails === undefined) {
         saDetails = {
             multiplier: 0
@@ -228,12 +254,16 @@ function selectSuperAttack(simChar: any) {
 }
 
 function calculateAdditionalAttack(simCharacter: any, chances: number) {
+    let rng = Math.random()
     for (let index = 0; index < chances; index++) {
-        let rng = Math.random()
-        if (simCharacter.additionalAttackChance <= rng) {
-            return true
+        if (simCharacter.additionalAttackChance >= rng) {
+            if (rng > 0.49) {
+                return "super"
+            } else {
+                return "normal"
+            }
         }
     }
-    return false
+    return
 }
 
