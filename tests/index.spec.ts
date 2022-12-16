@@ -425,6 +425,20 @@ describe('Single Character Simulation', function () {
         equal(result.turnData["turn 1"].attacks["1"], 18750);
 
     });
+
+    it('attacks should be effective against all', function () {
+        let effectiveCharacter = Object.assign({}, baseCharacter);
+
+        effectiveCharacter.startOfTurn = function() {
+            this.turnStats.attackEffectiveToAll = true;
+        }
+
+        let result = DokkanSimulator.singleCharacterSimulation(effectiveCharacter, config)
+
+        // @ts-ignore
+        equal(result.turnData["turn 1"].attacks["1"], 15000);
+
+    });
 });
 
 

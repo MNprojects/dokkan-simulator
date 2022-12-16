@@ -90,7 +90,7 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
     // This is where start of turn + ATK support passives go. - done
     // This is also where nuking style passives are factored in. - done
     // Flat start of turn passives - done
-    
+
     simCharacter.startOfTurn();
     applyConfigPassives(configOptions, simCharacter);
     simCharacter.collectKiSpheres(collectedKiSpheres);
@@ -110,9 +110,9 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
     // SA - based ATK increases are factored in here as flat additions to the SA multiplier
 
     simCharacter.turnStats.superAttackDetails = selectSuperAttack(simCharacter, superAdditional!);
-
+    simCharacter.turnStats.attackModifier = calculateAttackModifier(simCharacter, configOptions)
     simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter, configOptions);
-    
+
     return simCharacter.turnStats.currentAttack
 }
 
@@ -150,6 +150,8 @@ function resetTurnStats(character: any) {
             debuffTargetDEF: {}
         },
         additionalAttack: false,
+        attackModifier: 0,
+        attackEffectiveToAll: false,
 
     }
 }
@@ -193,6 +195,18 @@ function activateLinks(character: any, activeLinks: string[]) {
     });
 }
 
+function calculateAttackModifier(simCharacter: any, config: SimConfiguration): number {
+    let rng = Math.random();
+    // Separate chances to crit based on Hidden Potential and passives
+    if (rng < simCharacter.turnStats.criticalChance || rng < simCharacter.criticalChance) {
+        return 0.875
+    } else if (simCharacter.turnStats.attackEffectiveToAll) {
+        return 0.5
+    } else {
+        return 0;
+    }
+}
+
 function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): number {
     let stats = simCharacter.turnStats
     let battleStats = simCharacter.battleStats
@@ -204,6 +218,7 @@ function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): nu
         * (1 + stats.currentKiMultiplier) // TODO: For not super attacks?
         * (1 + battleStats.stackAttack + battleStats.attackPerAttackPerformed + battleStats.attackPerAttackReceived + battleStats.attackPerAttackEvaded + battleStats.attackPerTurn + battleStats.attackPerEnemy + battleStats.attackPerFinalBlow)
         * (1 + stats.superAttackDetails.multiplier)
+        * (1 + stats.attackModifier)
     return result
 }
 
@@ -231,7 +246,7 @@ function selectSuperAttack(simChar: any, superAdditional?: boolean) {
             if (simChar.turnStats.currentKi >= parseInt(Object.keys(superAttack)[0]) && parseInt(Object.keys(superAttack)[0]) <= highestSANum) {
                 highestSANum = parseInt(Object.keys(superAttack)[0]);
                 saDetails = Object.values(superAttack)[0]
-                
+
             }
         });
     } else {
@@ -242,7 +257,7 @@ function selectSuperAttack(simChar: any, superAdditional?: boolean) {
             }
         });
     }
-    
+
     // if no Ki threshold is reached
     if (saDetails === undefined) {
         saDetails = {
