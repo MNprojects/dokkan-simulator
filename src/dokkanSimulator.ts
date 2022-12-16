@@ -2,6 +2,8 @@ export abstract class DokkanSimulator {
 
     static singleCharacterSimulation(character: Character, configOptions: SimConfiguration): (SimResults) {
         // TODO: validate input
+        validateCharacter(character);
+        validateConfig(configOptions);
         let results: SimResults = { summary: {}, turnData: {}, team: {}, config: {} }
         let turns = {};
         let appeared = 0;
@@ -118,12 +120,27 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
 
 export interface Character {
     name: string,
-    type: string,
-    startOfTurn(): void,
-    collectKiSpheres(kiSpheres: kiSpheres): void,
+    type: Type,
+    startOfTurn?(): void,
+    collectKiSpheres?(kiSpheres: kiSpheres): void,
+    passiveAdditionalAttacks?(): string[],
     baseAttack: number,
     categories: string[],
     links: {}[],
+    additionalAttackChance: number,
+    criticalChance: number,
+    calculateKiMultiplier?(): void,
+    onAttack?(): void,
+    superAttacks: {}[]
+
+}
+
+function validateCharacter(character: Character) {
+
+}
+
+function validateConfig(config: SimConfiguration) {
+
 }
 
 
@@ -184,7 +201,13 @@ interface SimResults {
     config: Object
 }
 
-
+export enum Type {
+    TEQ = "TEQ",
+    INT = "INT",
+    PHY = "PHY",
+    STR = "STR",
+    AGL = "AGL",
+}
 
 function activateLinks(character: any, activeLinks: string[]) {
     character.links.forEach((link: any) => {
@@ -196,7 +219,7 @@ function activateLinks(character: any, activeLinks: string[]) {
 }
 
 function calculateAttackModifier(simCharacter: any, config: SimConfiguration): number {
-    let rng = Math.random();
+    const rng = Math.random();
     // Separate chances to crit based on Hidden Potential and passives
     if (rng < simCharacter.turnStats.criticalChance || rng < simCharacter.criticalChance) {
         return 0.875
@@ -208,30 +231,31 @@ function calculateAttackModifier(simCharacter: any, config: SimConfiguration): n
 }
 
 function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): number {
-    let stats = simCharacter.turnStats
-    let battleStats = simCharacter.battleStats
-    let result = ((stats.currentAttack
-        * (1 + stats.percentageLeaderAttack) + stats.flatLeaderAttack)
-        * (1 + stats.percentageStartOfTurnAttack + config.percentageStartOfTurnAttack)
-        + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack)
-        * (1 + stats.percentageLinksAttack)
-        * (1 + stats.currentKiMultiplier) // TODO: For not super attacks?
-        * (1 + battleStats.stackAttack + battleStats.attackPerAttackPerformed + battleStats.attackPerAttackReceived + battleStats.attackPerAttackEvaded + battleStats.attackPerTurn + battleStats.attackPerEnemy + battleStats.attackPerFinalBlow)
-        * (1 + stats.superAttackDetails.multiplier)
-        * (1 + stats.attackModifier)
-    return result
+    const stats = simCharacter.turnStats
+    const battleStats = simCharacter.battleStats
+    const attackAfterLeaderSkills = Math.floor(stats.currentAttack * (1 + stats.percentageLeaderAttack) + stats.flatLeaderAttack);
+    const attackAfterStartOfTurn = Math.floor(attackAfterLeaderSkills * (1 + stats.percentageStartOfTurnAttack + config.percentageStartOfTurnAttack) + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack);
+    const attackAfterLinks = Math.floor(attackAfterStartOfTurn * (1 + stats.percentageLinksAttack));
+    const attackAfterKiMultiplier = Math.floor(attackAfterLinks * (1 + stats.currentKiMultiplier)); // TODO: For not super attacks?
+    const attackAfterStacking = Math.floor(attackAfterKiMultiplier * (1 + battleStats.stackAttack + battleStats.attackPerAttackPerformed + battleStats.attackPerAttackReceived + battleStats.attackPerAttackEvaded + battleStats.attackPerTurn + battleStats.attackPerEnemy + battleStats.attackPerFinalBlow))
+    const attackAfterSAMultiplier = Math.floor(attackAfterStacking * (1 + stats.superAttackDetails.multiplier))
+    const attackAfterModifier = Math.floor(attackAfterSAMultiplier * (1 + stats.attackModifier))
+
+    return attackAfterModifier
 }
 
 
 
 function findBestKiSphereCollection(simCharacter: any, turnConfig: SimConfiguration): kiSpheres {
-    // TODO actually implement something - should probably calc the attack from a few different options to mimic user choices on board
+    // TODO actually implement something - should probably simulate calc the attack from a few different options to mimic user choices on board
     // TODO (but team sim need to lower chances based on what is actually taken to not favour mono teams)
     return { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 5, RBW: 1 }
 }
 
 function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any) {
     simCharacter.turnStats.percentageKiSphereAttack = configOptions.percentageObtainKiSphereAttack
+    console.log(simCharacter.turnStats.percentageKiSphereAttack);
+
     simCharacter.turnStats.flatKiSphereAttack = configOptions.flatObtainKiSphereAttack
 }
 // TODO: builder pattern for config and character?

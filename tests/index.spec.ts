@@ -1,21 +1,15 @@
-import { DokkanSimulator, Character, SimConfiguration, kiSpheres } from '../src/dokkanSimulator';
+import { DokkanSimulator, Character, SimConfiguration, kiSpheres, Type } from '../src/dokkanSimulator';
 import { deepEqual, equal } from "assert";
 
-let baseCharacter: any;
+let baseCharacter: Character;
 let config: SimConfiguration;
 
 before(function () {
     baseCharacter =
     {
         name: 'Test',
+        type: Type.TEQ,
         startOfTurn() { },
-        passiveAdditionalAttacks(): string[] { return [] },
-        baseAttack: 10000,
-        categories: [],
-        links: [],
-        type: 'TEQ',
-        additionalAttackChance: 0,
-        criticalChance: 0,
         collectKiSpheres(kiSpheres: kiSpheres) {
             let kiBoost = 0;
             Object.entries(kiSpheres).forEach(
@@ -29,6 +23,12 @@ before(function () {
                 this.turnStats.currentKi += kiBoost;
             }
         },
+        passiveAdditionalAttacks(): string[] { return [] },
+        baseAttack: 10000,
+        categories: [],
+        links: [],
+        additionalAttackChance: 0,
+        criticalChance: 0,
         calculateKiMultiplier() { },
         onAttack() { },
         superAttacks: [
@@ -56,7 +56,7 @@ before(function () {
         percentageStartOfTurnAttack: 0,
         flatStartOfTurnAttack: 0,
         activeLinks: [],
-        percentageObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+        percentageObtainKiSphereAttack: { TEQ: 10, AGL: 10, STR: 10, PHY: 10, INT: 10, RBW: 10 },
         flatObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
     }
 })
@@ -367,7 +367,7 @@ describe('Single Character Simulation', function () {
         let result = DokkanSimulator.singleCharacterSimulation(multiCharacter, multiConfig)
 
         // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 223256.25);
+        equal(result.turnData["turn 1"].attacks["1"], 223255);
     });
 
     it('should do an additional attack', function () {
@@ -429,7 +429,7 @@ describe('Single Character Simulation', function () {
     it('attacks should be effective against all', function () {
         let effectiveCharacter = Object.assign({}, baseCharacter);
 
-        effectiveCharacter.startOfTurn = function() {
+        effectiveCharacter.startOfTurn = function () {
             this.turnStats.attackEffectiveToAll = true;
         }
 
@@ -437,6 +437,37 @@ describe('Single Character Simulation', function () {
 
         // @ts-ignore
         equal(result.turnData["turn 1"].attacks["1"], 15000);
+
+    });
+
+    it('match scenario character - INT Gogeta', function () {
+        let scenarioCharacter = Object.assign({}, baseCharacter);
+        scenarioCharacter.baseAttack = 15695;
+
+        scenarioCharacter.startOfTurn = function () {
+            this.turnStats.percentageStartOfTurnAttack += 1.2;
+            this.turnStats.attackEffectiveToAll = true;
+        }
+        scenarioCharacter.collectKiSpheres = function (collectedKiSpheres: kiSpheres) {
+            if (collectedKiSpheres.RBW > 1) {
+                this.turnStats.percentageStartOfTurnAttack += 0.4;
+            }
+            if (collectedKiSpheres.RBW > 2) {
+                this.turnStats.criticalChance += 0.5;
+            }
+        }
+        scenarioCharacter.superAttacks = [
+            {
+                12: {
+                    multiplier: 1.5,
+                }
+            }
+        ]
+
+        let result = DokkanSimulator.singleCharacterSimulation(scenarioCharacter, config)
+
+        // @ts-ignore
+        equal(result.turnData["turn 1"].attacks["1"], 51793);
 
     });
 });
