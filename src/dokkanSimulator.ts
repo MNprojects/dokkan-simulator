@@ -160,11 +160,6 @@ function validateCharacter(character: Character) {
 
 }
 
-function validateConfig(config: SimConfiguration) {
-
-}
-
-
 function resetTurnStats(character: any) {
     character.turnStats = {
         currentAttack: character.baseAttack,
@@ -205,8 +200,25 @@ export interface SimConfiguration {
     activeLinks: string[]
     percentageObtainKiSphereAttack: kiSpheres,
     flatObtainKiSphereAttack: kiSpheres,
-
 }
+
+function validateConfig(config: SimConfiguration) {
+    let errorMessages = "";
+    if (config.appearances < 1) {
+        errorMessages = errorMessages.concat("configuration.appearances: Simulated character must appear at least once. \r\n")
+    }
+    if (config.startingPosition < 0 || config.startingPosition > 5) {
+        errorMessages = errorMessages.concat("configuration.startingPosition: Starting Position must be between 0 and 5. \r\n")
+    }
+    if (config.desiredPosition < 0 || config.desiredPosition > 5) {
+        errorMessages = errorMessages.concat("configuration.desiredPostion: Desired Position must be between 0 and 5. \r\n")
+    }
+
+    if (errorMessages != "") {
+        throw new Error(errorMessages);  
+    }
+}
+
 export interface kiSpheres {
     TEQ: number,
     AGL: number,
