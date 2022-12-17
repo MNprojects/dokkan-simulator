@@ -92,7 +92,6 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
     // This is where start of turn + ATK support passives go. - done
     // This is also where nuking style passives are factored in. - done
     // Flat start of turn passives - done
-
     simCharacter.startOfTurn();
     applyConfigPassives(configOptions, simCharacter);
     simCharacter.collectKiSpheres(collectedKiSpheres);
@@ -120,22 +119,44 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
 
 export interface Character {
     name: string,
+    title: string,
     type: Type,
     startOfTurn?(): void,
     collectKiSpheres?(kiSpheres: kiSpheres): void,
-    passiveAdditionalAttacks?(): string[],
+    passiveAdditionalAttacks?(config: SimConfiguration): string[], //TODO: type rather than string
     baseAttack: number,
     categories: string[],
-    links: {}[],
+    links: {}[], //TODO: type definition
     additionalAttackChance: number,
     criticalChance: number,
     calculateKiMultiplier?(): void,
     onAttack?(): void,
-    superAttacks: {}[]
-
+    superAttacks: {}[], //TODO: type definition
+    turnStats: {
+        percentageStartOfTurnAttack: number,
+        attackEffectiveToAll: boolean,
+        criticalChance: number,
+        currentKi: number,
+        currentKiMultiplier: number,
+        flatStartOfTurnAttack: number,
+        percentageKiSphereAttack: kiSpheres,
+        flatKiSphereAttack: kiSpheres,
+    },
+    battleStats: {
+        stackAttack: number,
+        attackPerAttackPerformed: number,
+        attackPerAttackReceived: number,
+        attackPerAttackEvaded: number,
+        attackPerTurn: number,
+        attackPerEnemy: number,
+        attackPerFinalBlow: number,
+    },
 }
 
 function validateCharacter(character: Character) {
+    if (character.baseAttack < 0) {
+        throw new Error("base attack must be a positive number");
+    }
 
 }
 
@@ -254,8 +275,6 @@ function findBestKiSphereCollection(simCharacter: any, turnConfig: SimConfigurat
 
 function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any) {
     simCharacter.turnStats.percentageKiSphereAttack = configOptions.percentageObtainKiSphereAttack
-    console.log(simCharacter.turnStats.percentageKiSphereAttack);
-
     simCharacter.turnStats.flatKiSphereAttack = configOptions.flatObtainKiSphereAttack
 }
 // TODO: builder pattern for config and character?
@@ -270,7 +289,6 @@ function selectSuperAttack(simChar: any, superAdditional?: boolean) {
             if (simChar.turnStats.currentKi >= parseInt(Object.keys(superAttack)[0]) && parseInt(Object.keys(superAttack)[0]) <= highestSANum) {
                 highestSANum = parseInt(Object.keys(superAttack)[0]);
                 saDetails = Object.values(superAttack)[0]
-
             }
         });
     } else {

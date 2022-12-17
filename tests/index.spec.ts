@@ -8,6 +8,7 @@ before(function () {
     baseCharacter =
     {
         name: 'Test',
+        title: 'Title',
         type: Type.TEQ,
         startOfTurn() { },
         collectKiSpheres(kiSpheres: kiSpheres) {
@@ -45,6 +46,25 @@ before(function () {
                 }
             }
         ],
+        turnStats: {
+            percentageStartOfTurnAttack: 0,
+            attackEffectiveToAll: false,
+            criticalChance: 0,
+            currentKi: 0,
+            currentKiMultiplier: 0,
+            flatStartOfTurnAttack: 0,
+            percentageKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+            flatKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+        },
+        battleStats: {
+            stackAttack: 0,
+            attackPerAttackPerformed: 0,
+            attackPerAttackReceived: 0,
+            attackPerAttackEvaded: 0,
+            attackPerTurn: 0,
+            attackPerEnemy: 0,
+            attackPerFinalBlow: 0,
+        },
 
     }
     config = {
@@ -170,6 +190,7 @@ describe('Single Character Simulation', function () {
             Object.entries(collectedKiSpheres).forEach(
                 ([key, value]) => {
                     kiBoost += value;
+                    // @ts-ignore
                     this.turnStats.percentageStartOfTurnAttack += this.turnStats.percentageKiSphereAttack[key] * value
                 });
             kiBoost += collectedKiSpheres.TEQ
@@ -197,6 +218,7 @@ describe('Single Character Simulation', function () {
             let kiBoost = 0;
             Object.entries(collectedKiSpheres).forEach(
                 ([key, value]) => {
+                    // @ts-ignore
                     this.turnStats.flatStartOfTurnAttack += this.turnStats.flatKiSphereAttack[key] * value
                     kiBoost += value;
                 });
