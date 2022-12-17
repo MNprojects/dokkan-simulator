@@ -1,4 +1,4 @@
-import { DokkanSimulator, Character, SimConfiguration, kiSpheres, Type } from '../src/dokkanSimulator';
+import { DokkanSimulator, Character, SimConfiguration, KiSpheres, Type, GameState } from '../src/dokkanSimulator';
 import { deepEqual, equal } from "assert";
 
 let baseCharacter: Character;
@@ -10,14 +10,19 @@ before(function () {
         name: 'Test',
         title: 'Title',
         type: Type.TEQ,
+        baseAttack: 10000,
+        categories: [],
+        links: [],
+        additionalAttackChance: 0,
+        criticalChance: 0,
         startOfTurn() { },
-        collectKiSpheres(kiSpheres: kiSpheres) {
+        collectKiSpheres(KiSpheres: KiSpheres) {
             let kiBoost = 0;
-            Object.entries(kiSpheres).forEach(
+            Object.entries(KiSpheres).forEach(
                 ([key, value]) => {
                     kiBoost += value;
                 });
-            kiBoost += kiSpheres.TEQ
+            kiBoost += KiSpheres.TEQ
             if (this.turnStats.currentKi + kiBoost >= 12) {
                 this.turnStats.currentKi = 12;
             } else {
@@ -25,11 +30,6 @@ before(function () {
             }
         },
         passiveAdditionalAttacks(): string[] { return [] },
-        baseAttack: 10000,
-        categories: [],
-        links: [],
-        additionalAttackChance: 0,
-        criticalChance: 0,
         calculateKiMultiplier() { },
         onAttack() { },
         superAttacks: [
@@ -47,7 +47,7 @@ before(function () {
             }
         ],
         turnStats: {
-            percentageStartOfTurnAttack: 0,
+            percentageStartOfTurnAttackBuffs: [],
             attackEffectiveToAll: false,
             criticalChance: 0,
             currentKi: 0,
@@ -68,11 +68,11 @@ before(function () {
 
     }
     config = {
-        appearances: 3,
+        appearances: 1,
         startingPosition: 0,
         desiredPosition: 1,
-        leaderSkill1(char: any) { return char },
-        leaderSkill2(char: any) { return char },
+        leaderSkill1(char: any) { },
+        leaderSkill2(char: any) { },
         percentageStartOfTurnAttack: 0,
         flatStartOfTurnAttack: 0,
         activeLinks: [],
@@ -81,80 +81,179 @@ before(function () {
     }
 })
 
+afterEach(function () {
+    baseCharacter =
+    {
+        name: 'Test',
+        title: 'Title',
+        type: Type.TEQ,
+        baseAttack: 10000,
+        categories: [],
+        links: [],
+        additionalAttackChance: 0,
+        criticalChance: 0,
+        startOfTurn() { },
+        collectKiSpheres(KiSpheres: KiSpheres) {
+            let kiBoost = 0;
+            Object.entries(KiSpheres).forEach(
+                ([key, value]) => {
+                    kiBoost += value;
+                });
+            kiBoost += KiSpheres.TEQ
+            if (this.turnStats.currentKi + kiBoost >= 12) {
+                this.turnStats.currentKi = 12;
+            } else {
+                this.turnStats.currentKi += kiBoost;
+            }
+        },
+        passiveAdditionalAttacks(): string[] { return [] },
+        calculateKiMultiplier() { },
+        onAttack() { },
+        superAttacks: [
+            {
+                12: {
+                    multiplier: 0.0,
+                    attackRaise: {},
+                    extraCritChance: 0,
+                    disableGuard: false,
+                    stun: {},
+                    seal: {},
+                    effectiveAgainstAll: false,
+                    debuffTargetDEF: {}
+                }
+            }
+        ],
+        turnStats: {
+            percentageStartOfTurnAttackBuffs: [],
+            attackEffectiveToAll: false,
+            criticalChance: 0,
+            currentKi: 0,
+            currentKiMultiplier: 0,
+            flatStartOfTurnAttack: 0,
+            percentageKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+            flatKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+        },
+        battleStats: {
+            stackAttack: 0,
+            attackPerAttackPerformed: 0,
+            attackPerAttackReceived: 0,
+            attackPerAttackEvaded: 0,
+            attackPerTurn: 0,
+            attackPerEnemy: 0,
+            attackPerFinalBlow: 0,
+        },
+    }
+
+    config = {
+        appearances: 1,
+        startingPosition: 0,
+        desiredPosition: 1,
+        leaderSkill1(char: any) { },
+        leaderSkill2(char: any) { },
+        percentageStartOfTurnAttack: 0,
+        flatStartOfTurnAttack: 0,
+        activeLinks: [],
+        percentageObtainKiSphereAttack: { TEQ: 10, AGL: 10, STR: 10, PHY: 10, INT: 10, RBW: 10 },
+        flatObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+    }
+
+})
+
 describe('Single Character Simulation', function () {
     it('should have the same number of turns as given in the config', function () {
+        let turnsChar = Object.assign([], baseCharacter);
         let expectedAppearances = 4
         let appearancesConfig = Object.assign({}, config)
         appearancesConfig.appearances = expectedAppearances;
 
-        let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, appearancesConfig)
+        let result = DokkanSimulator.singleCharacterSimulation(turnsChar, appearancesConfig)
 
         equal(Object.keys(result.turnData).length, expectedAppearances);
     });
 
     it('should have an unmodified attack in the results', function () {
-        let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
+        let unmodifiedChar = Object.assign([], baseCharacter);
+        let unmodifiedConfig = Object.assign([], config);
+        let result = DokkanSimulator.singleCharacterSimulation(unmodifiedChar, unmodifiedConfig)
         // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], baseCharacter.baseAttack);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], unmodifiedChar.baseAttack);
     });
 
     it('should modify attack by the percentage leaderskills', function () {
+        let leaderskillChar = Object.assign([], baseCharacter);
         let leaderskillConfig = Object.assign([], config);
         leaderskillConfig.leaderSkill1 = function (char: any) {
             char.turnStats.percentageLeaderAttack += 1.7;
-            return char
         }
         leaderskillConfig.leaderSkill2 = function (char: any) {
             char.turnStats.percentageLeaderAttack += 1.7;
-            return char
         }
-        let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, leaderskillConfig)
+        let result = DokkanSimulator.singleCharacterSimulation(leaderskillChar, leaderskillConfig)
         // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 44000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 44000);
     });
 
     it('should modify attack by the flat and percentage leaderskills', function () {
+        let leaderskillChar = Object.assign([], baseCharacter);
         let leaderskillConfig = Object.assign([], config);
         leaderskillConfig.leaderSkill1 = function (char: any) {
             char.turnStats.flatLeaderAttack += 30000;
-            return char
         }
         leaderskillConfig.leaderSkill2 = function (char: any) {
             char.turnStats.percentageLeaderAttack += 1.7;
-            return char
         }
-        let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, leaderskillConfig)
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 57000);
+        let result = DokkanSimulator.singleCharacterSimulation(leaderskillChar, leaderskillConfig)
+
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 57000);
     });
 
     it('should modify attack by percentage start of turn passives', function () {
-        let sotPassiveChar = Object.assign([], baseCharacter);
+        let sotPassiveChar = { ...baseCharacter }
+
         sotPassiveChar.startOfTurn = function () {
-            // @ts-ignore
-            this.turnStats.percentageStartOfTurnAttack = 0.5
+            this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.5, turnBuffExpires: 1 })
         }
         let sotPassiveConfig = Object.assign([], config);
         sotPassiveConfig.percentageStartOfTurnAttack = 0.3;
 
         let result = DokkanSimulator.singleCharacterSimulation(sotPassiveChar, sotPassiveConfig)
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 18000);
+
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 18000);
+        console.log(baseCharacter.turnStats);
     });
 
     it('should modify attack by flat start of turn passives', function () {
-        let sotFlatPassiveChar = Object.assign([], baseCharacter);
+        let sotFlatPassiveChar = Object.assign({}, baseCharacter);
+
         sotFlatPassiveChar.startOfTurn = function () {
-            // @ts-ignore
             this.turnStats.flatStartOfTurnAttack = 1000
         }
+        // console.log(sotFlatPassiveChar);
         let sotFlatPassiveConfig = Object.assign([], config);
         sotFlatPassiveConfig.flatStartOfTurnAttack = 3000;
+        // console.log(sotFlatPassiveConfig);
 
         let result = DokkanSimulator.singleCharacterSimulation(sotFlatPassiveChar, sotFlatPassiveConfig)
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 14000);
+
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 14000);
     });
+
+    // HERE
+    // HERE
+    // it('should modify attack by percentage at the start of turn for a set amount of turns, then expire', function () {
+    //     let sotBothPassiveChar = Object.assign([], baseCharacter);
+    //     sotBothPassiveChar.startOfTurn = function (gamestate: GameState) {
+    //         this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.5, turnBuffExpires: gamestate.turn + 3 });
+    //         // console.log(this.turnStats.percentageStartOfTurnAttackBuffs);
+
+    //     }
+    //     let sotPassiveConfig = Object.assign([], config);
+    //     sotPassiveConfig.percentageStartOfTurnAttack = 0.3;
+
+    //     let result = DokkanSimulator.singleCharacterSimulation(sotBothPassiveChar, sotPassiveConfig)
+
+    //     equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 18000);
+    // });
 
     it('should modify attack by leaderskills AND start of turn passives', function () {
         let mixedConfig = Object.assign([], config);
@@ -171,7 +270,7 @@ describe('Single Character Simulation', function () {
         let mixedChar = Object.assign([], baseCharacter);
         mixedChar.startOfTurn = function () {
             // @ts-ignore
-            this.turnStats.percentageStartOfTurnAttack = 2      // 169,600
+            this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 2, turnBuffExpires: 1 })// 169,600
             // @ts-ignore
             this.turnStats.flatStartOfTurnAttack = 1000     // 170,600
         }
@@ -179,19 +278,19 @@ describe('Single Character Simulation', function () {
         mixedConfig.flatStartOfTurnAttack = 3000;
 
         let result = DokkanSimulator.singleCharacterSimulation(mixedChar, mixedConfig)
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 173600);
+
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 173600);
     });
 
     it('should modify attack by percentage nuking passives', function () {
         let nukePassiveChar = Object.assign([], baseCharacter);
-        nukePassiveChar.collectKiSpheres = function (collectedKiSpheres: kiSpheres) {
+        nukePassiveChar.collectKiSpheres = function (collectedKiSpheres: KiSpheres) {
             let kiBoost = 0;
             Object.entries(collectedKiSpheres).forEach(
                 ([key, value]) => {
                     kiBoost += value;
                     // @ts-ignore
-                    this.turnStats.percentageStartOfTurnAttack += this.turnStats.percentageKiSphereAttack[key] * value
+                    this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: this.turnStats.percentageKiSphereAttack[key] * value, turnBuffExpires: 1 })
                 });
             kiBoost += collectedKiSpheres.TEQ
         }
@@ -203,18 +302,17 @@ describe('Single Character Simulation', function () {
         // section finds the number of orbs actually collected to allow them to be randomised but still work for the test
         let expectedAttackBoost: number = 0
         // @ts-ignore
-        Object.entries(result.turnData["turn 1"].kiSpheres).forEach(([key, value]) =>
+        Object.entries(result.turnData["turn 1"].KiSpheres).forEach(([key, value]) =>
             // @ts-ignore
             expectedAttackBoost += nukePassiveConfig.percentageObtainKiSphereAttack[key] * value
         )
 
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], nukePassiveChar.baseAttack * (1 + expectedAttackBoost));
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], nukePassiveChar.baseAttack * (1 + expectedAttackBoost));
     });
 
     it('should modify attack by flat nuking passives', function () {
         let nukeFlatPassiveChar = Object.assign([], baseCharacter);
-        nukeFlatPassiveChar.collectKiSpheres = function (collectedKiSpheres: kiSpheres) {
+        nukeFlatPassiveChar.collectKiSpheres = function (collectedKiSpheres: KiSpheres) {
             let kiBoost = 0;
             Object.entries(collectedKiSpheres).forEach(
                 ([key, value]) => {
@@ -238,12 +336,12 @@ describe('Single Character Simulation', function () {
         // section finds the number of orbs actually collected to allow them to be randomised but still work for the test
         let expectedAttackBoost: number = 0
         // @ts-ignore
-        Object.entries(result.turnData["turn 1"].kiSpheres).forEach(([key, value]) =>
+        Object.entries(result.turnData["turn 1"].KiSpheres).forEach(([key, value]) =>
             // @ts-ignore
             expectedAttackBoost += nukePassiveConfig.flatObtainKiSphereAttack[key] * value
         )
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], nukeFlatPassiveChar.baseAttack + expectedAttackBoost);
+
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], nukeFlatPassiveChar.baseAttack + expectedAttackBoost);
     });
 
     it('should have attack modified by the active links', function () {
@@ -263,8 +361,7 @@ describe('Single Character Simulation', function () {
 
         let result = DokkanSimulator.singleCharacterSimulation(linksCharacter, activeLinksConfig)
 
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 13500);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 13500);
     });
 
     it('should have attack modified by the ki multiplier', function () {
@@ -281,8 +378,7 @@ describe('Single Character Simulation', function () {
 
         let result = DokkanSimulator.singleCharacterSimulation(kiMultiplierCharacter, config)
 
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 15000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 15000);
     });
 
     it('should have attack modified by build up passive', function () {
@@ -300,8 +396,7 @@ describe('Single Character Simulation', function () {
 
         let result = DokkanSimulator.singleCharacterSimulation(buildUpCharacter, config)
 
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 38000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 38000);
     });
 
     it('should have attack modified by SA modifier if ki threshold is reached', function () {
@@ -320,8 +415,7 @@ describe('Single Character Simulation', function () {
 
         let result = DokkanSimulator.singleCharacterSimulation(SACharacter, config)
 
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 15000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 15000);
     });
 
     it('should use the SA for the Ki threshold reached', function () {
@@ -340,8 +434,7 @@ describe('Single Character Simulation', function () {
 
         let result = DokkanSimulator.singleCharacterSimulation(SACharacter, config)
 
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 14000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 14000);
     });
 
     it('should have attack modified by multiple: (Leader skills, Start of Turn, Links, Ki Multiplier, SA modifier)', function () {
@@ -362,7 +455,7 @@ describe('Single Character Simulation', function () {
 
         multiCharacter.startOfTurn = function () {
             this.turnStats.currentKi += 12
-            this.turnStats.percentageStartOfTurnAttack = 0.5
+            this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.5, turnBuffExpires: 1 })
         }
 
         multiCharacter.links = [
@@ -388,8 +481,7 @@ describe('Single Character Simulation', function () {
 
         let result = DokkanSimulator.singleCharacterSimulation(multiCharacter, multiConfig)
 
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 223255);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 223255);
     });
 
     it('should do an additional attack', function () {
@@ -399,14 +491,13 @@ describe('Single Character Simulation', function () {
 
         let result = DokkanSimulator.singleCharacterSimulation(additionalCharacter, config)
 
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["2"], 10000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[1], 10000);
     });
 
     it('should do additional attacks from passive', function () {
         let passiveAdditionalCharacter = Object.assign({}, baseCharacter);
 
-        passiveAdditionalCharacter.passiveAdditionalAttacks = function (config: SimConfiguration) {
+        passiveAdditionalCharacter.passiveAdditionalAttacks = function (gameState: GameState) {
             let answer: string[] = ["normal", "super"]
             return answer;
         }
@@ -431,9 +522,9 @@ describe('Single Character Simulation', function () {
         let result = DokkanSimulator.singleCharacterSimulation(passiveAdditionalCharacter, config)
 
         // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["2"], 15000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[1], 15000);
         // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["3"], 14000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[2], 14000);
     });
 
     it('should be able to critical strike', function () {
@@ -443,8 +534,7 @@ describe('Single Character Simulation', function () {
 
         let result = DokkanSimulator.singleCharacterSimulation(critCharacter, config)
 
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 18750);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 18750);
 
     });
 
@@ -454,25 +544,21 @@ describe('Single Character Simulation', function () {
         effectiveCharacter.startOfTurn = function () {
             this.turnStats.attackEffectiveToAll = true;
         }
-
         let result = DokkanSimulator.singleCharacterSimulation(effectiveCharacter, config)
-
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 15000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 15000);
 
     });
 
     it('match scenario character - INT Gogeta', function () {
         let scenarioCharacter = Object.assign({}, baseCharacter);
         scenarioCharacter.baseAttack = 15695;
-
         scenarioCharacter.startOfTurn = function () {
-            this.turnStats.percentageStartOfTurnAttack += 1.2;
+            this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 1.2, turnBuffExpires: 1 });
             this.turnStats.attackEffectiveToAll = true;
         }
-        scenarioCharacter.collectKiSpheres = function (collectedKiSpheres: kiSpheres) {
+        scenarioCharacter.collectKiSpheres = function (collectedKiSpheres: KiSpheres) {
             if (collectedKiSpheres.RBW > 1) {
-                this.turnStats.percentageStartOfTurnAttack += 0.4;
+                this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.4, turnBuffExpires: 1 })
             }
             if (collectedKiSpheres.RBW > 2) {
                 this.turnStats.criticalChance += 0.5;
@@ -485,12 +571,8 @@ describe('Single Character Simulation', function () {
                 }
             }
         ]
-
         let result = DokkanSimulator.singleCharacterSimulation(scenarioCharacter, config)
-
-        // @ts-ignore
-        equal(result.turnData["turn 1"].attacks["1"], 51793);
-
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 51793);
     });
 });
 
