@@ -11,25 +11,15 @@ beforeEach(function () {
         title: 'Title',
         type: Type.TEQ,
         baseAttack: 10000,
+        maxKi: 12,
         categories: [],
         links: [],
         additionalAttackChance: 0,
         criticalChance: 0,
         startOfTurn() { },
-        collectKiSpheres(KiSpheres: KiSpheres) {
-            let kiBoost = 0;
-            Object.entries(KiSpheres).forEach(
-                ([key, value]) => {
-                    kiBoost += value;
-                });
-            kiBoost += KiSpheres.TEQ
-            if (this.turnStats.currentKi + kiBoost >= 12) {
-                this.turnStats.currentKi = 12;
-            } else {
-                this.turnStats.currentKi += kiBoost;
-            }
+        collectKiSpheres(kiSpheres: KiSpheres) {
         },
-        passiveAdditionalAttacks(): string[] { return [] },
+        passiveAdditionalAttacks(gameState: GameState): string[] { return [] },
         calculateKiMultiplier() { },
         onAttack() { },
         superAttacks: [
@@ -55,6 +45,10 @@ beforeEach(function () {
             flatStartOfTurnAttack: 0,
             percentageKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
             flatKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+            kiSphereBuffs: [],
+            SABuffs: [],
+            disableGuard: false,
+            superAttackDetails: {},
         },
         battleStats: {
             appearances: 0,
@@ -172,14 +166,12 @@ describe('Single Character Simulation', function () {
 
     it('should modify attack by percentage nuking passives', function () {
         baseCharacter.collectKiSpheres = function (collectedKiSpheres: KiSpheres) {
-            let kiBoost = 0;
             Object.entries(collectedKiSpheres).forEach(
                 ([key, value]) => {
-                    kiBoost += value;
                     // @ts-ignore
                     this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: this.turnStats.percentageKiSphereAttack[key] * value, turnBuffExpires: 1 })
                 });
-            kiBoost += collectedKiSpheres.TEQ
+
         }
         config.percentageObtainKiSphereAttack = { TEQ: 0.1, AGL: 0.2, STR: 0.3, PHY: 0.4, INT: 0.5, RBW: 0.6 };
 
@@ -196,19 +188,11 @@ describe('Single Character Simulation', function () {
 
     it('should modify attack by flat nuking passives', function () {
         baseCharacter.collectKiSpheres = function (collectedKiSpheres: KiSpheres) {
-            let kiBoost = 0;
             Object.entries(collectedKiSpheres).forEach(
                 ([key, value]) => {
                     // @ts-ignore
                     this.turnStats.flatStartOfTurnAttack += this.turnStats.flatKiSphereAttack[key] * value
-                    kiBoost += value;
                 });
-            kiBoost += collectedKiSpheres.TEQ
-            if (kiBoost <= 12) {
-                this.turnStats.currentKi = 12;
-            } else {
-                this.turnStats.currentKi = kiBoost;
-            }
         }
         config.flatObtainKiSphereAttack = { TEQ: 10, AGL: 205, STR: 3000, PHY: 4000, INT: 50000, RBW: 6 };
         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
@@ -417,6 +401,58 @@ describe('Single Character Simulation', function () {
             {
                 12: {
                     multiplier: 1.5,
+                }
+            }
+        ]
+        let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 51793);
+    });
+
+    it.only('match scenario character - TEQ LR Gods', function () {
+        baseCharacter.baseAttack = 21075;
+        baseCharacter.startOfTurn = function (gameState: GameState) {
+            // TODO : Guard (when implementing being attacked)
+            if (this.battleStats.appearances === 1) {
+                this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.77, turnBuffExpires: gameState.turn + 7 });
+            }
+            this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 1.2, turnBuffExpires: 1 });
+        }
+        baseCharacter.collectKiSpheres = function (collectedKiSpheres: KiSpheres, gameState: GameState) {
+            this.turnStats.criticalChance += collectedKiSpheres.RBW * 0.07
+            if (this.battleStats.appearances === 1) {
+                this.turnStats.kiSphereBuffs.push({ amount: 1, turnBuffExpires: gameState.turn + 1, types: ["TEQ", "AGL", "STR", "PHY", "INT"] }) // Use Type.TEQ etc?
+            }
+            this.turnStats.kiSphereBuffs.push({ amount: 1, turnBuffExpires: 99, types: ["TEQ", "AGL", "STR", "PHY", "INT"] }) // Use Type.TEQ etc?
+
+        }
+        baseCharacter.passiveAdditionalAttacks = function (gameState: GameState) {
+            if (this.turnStats.currentKi > 19) {
+                return ["super"]
+            }
+            return []
+        };
+        baseCharacter.onAttack = function (gameState: GameState) {
+            if (this.turnStats.currentKi === 24) {
+                this.turnStats.attackEffectiveToAll = true;
+            }
+        };
+        baseCharacter.superAttacks = [
+            {
+                12: {
+                    multiplier: 1.6,
+                    attackRaise: {},
+                    extraCritChance: 0,
+                    disableGuard: false,
+                    stun: {},
+                    seal: {},
+                    effectiveAgainstAll: false,
+                    debuffTargetDEF: {}
+                }
+            },
+            {
+                18: {
+                    multiplier: 1.8,
+
                 }
             }
         ]
