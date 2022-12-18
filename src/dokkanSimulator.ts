@@ -5,22 +5,28 @@ export interface GameState {
     currentRotation: number[],
     leaderSkill1(char: Character): void,
     leaderSkill2(char: Character): void,
-    enemies: any[], // TODO: Different phases?
-    // TODO: Items?
+    enemies: any[], // TODO: Actual enemies with names/categories. Different phases?
+    // TODO: Items? Support Memories?
 }
 
 export abstract class DokkanSimulator {
     static singleCharacterSimulation(character: Character, configOptions: SimConfiguration): (SimResults) {
         validateCharacter(character);
         validateConfig(configOptions);
-
+        let gameState: GameState = {
+            turn: 1,
+            teamArray: [0, 1, 3, 4, 2, 5, 6],
+            currentRotation: [0, 1, 2],
+            leaderSkill1: configOptions.leaderSkill1,
+            leaderSkill2: configOptions.leaderSkill2,
+            enemies: [{ name: "test enemy" }]
+        }
         let results: SimResults = { summary: {}, turnData: {}, team: {}, config: {} }
         let turns = {};
-        let teamArray: number[] = [0, 1, 3, 4, 2, 5, 6];
         let currentPosition = configOptions.startingPosition;
         let simCharacter: any = character
         simCharacter.battleStats = {
-            appeared: 0,
+            appearances: 0,
             stackAttack: 0,
             attackPerAttackPerformed: 0,
             attackPerAttackReceived: 0,
@@ -30,30 +36,29 @@ export abstract class DokkanSimulator {
             attackPerFinalBlow: 0
         }
 
-        for (let turn = 1; simCharacter.battleStats.appeared < configOptions.appearances; turn++) {
+        for (gameState.turn; simCharacter.battleStats.appearances < configOptions.appearances; gameState.turn++) {
 
-            let currentRotation: any[] = []
             // set which character slots are on rotation
-            if (turn % 2 === 0) {
-                currentRotation = currentRotation.concat(teamArray[2]).concat(teamArray[3]).concat(teamArray[((turn - 1) % 3) + 4]);
+            if (gameState.turn % 2 === 0) {
+                gameState.currentRotation = [gameState.teamArray[2], gameState.teamArray[3], gameState.teamArray[((gameState.turn - 1) % 3) + 4]];
             }
             else {
-                currentRotation = currentRotation.concat(teamArray[0]).concat(teamArray[1]).concat(teamArray[((turn - 1) % 3) + 4]);
+                gameState.currentRotation = [gameState.teamArray[0], gameState.teamArray[1], gameState.teamArray[((gameState.turn - 1) % 3) + 4]];
             }
 
             // if the sim character is on rotation
-            if (currentRotation.includes(currentPosition)) {
-                simCharacter.battleStats.appeared++;
-                currentPosition = currentRotation[configOptions.desiredPosition];
+            if (gameState.currentRotation.includes(currentPosition)) {
+                simCharacter.battleStats.appearances++;
+                currentPosition = gameState.currentRotation[configOptions.desiredPosition];
                 resetTurnStats(simCharacter);
                 // Collect Ki Spheres
                 let collectedKiSpheres = findBestKiSphereCollection(simCharacter, configOptions);
 
                 // add results to turnData
-                let turnName: string = 'turn ' + turn;
+                let turnName: string = 'turn ' + gameState.turn;
                 // @ts-ignore
                 turns[turnName] = {
-                    appearanceCount: simCharacter.battleStats.appeared,
+                    appearanceCount: simCharacter.battleStats.appearances,
                     KiSpheres: collectedKiSpheres,
                     attacks: {}
                 }
@@ -63,7 +68,7 @@ export abstract class DokkanSimulator {
                 // TODO: refactor to a single attack loop rather than all this additionals work
                 let additionalAttacks: string[] = simCharacter.passiveAdditionalAttacks(configOptions)
                 additionalAttacks = Object.values(additionalAttacks)
-                let attack = attackLoop(simCharacter, configOptions, collectedKiSpheres);
+                let attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState);
 
                 // @ts-ignore
                 turns[turnName].attacks[attackCount] = attack;
@@ -77,14 +82,15 @@ export abstract class DokkanSimulator {
                 additionalAttacks.forEach(additional => {
                     resetTurnStats(simCharacter);
                     if (additional === "super") {
-                        attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, true);
+                        attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState, true);
                     } else if (additional === "normal") {
-                        attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, false);
+                        attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState, false);
                     }
                     attackCount++
                     // @ts-ignore
                     turns[turnName].attacks[attackCount] = attack;
                 });
+                endOfTurn(character, gameState)
             }
         }
         results.turnData = turns
@@ -92,18 +98,18 @@ export abstract class DokkanSimulator {
     }
 }
 
-function attackLoop(simCharacter: any, configOptions: SimConfiguration, collectedKiSpheres: KiSpheres, superAdditional?: boolean) {
+function attackLoop(simCharacter: any, configOptions: SimConfiguration, collectedKiSpheres: KiSpheres, gameState: GameState, superAdditional?: boolean) {
 
     // Percentage - based leader skills - done
     // Flat leader skills - done
-    configOptions.leaderSkill1(simCharacter);
-    configOptions.leaderSkill2(simCharacter);
+    gameState.leaderSkill1(simCharacter);
+    gameState.leaderSkill2(simCharacter);
 
     // Percentage - based start of turn passives - done
     // This is where start of turn + ATK support passives go. - done
     // This is also where nuking style passives are factored in. - done
     // Flat start of turn passives - done
-    simCharacter.startOfTurn();
+    simCharacter.startOfTurn(gameState);
     applyConfigPassives(configOptions, simCharacter);
     simCharacter.collectKiSpheres(collectedKiSpheres);
 
@@ -154,6 +160,7 @@ export interface Character {
         flatKiSphereAttack: KiSpheres,
     },
     battleStats: {
+        appearances: number,
         stackAttack: number,
         attackPerAttackPerformed: number,
         attackPerAttackReceived: number,
@@ -171,18 +178,19 @@ function validateCharacter(character: Character) {
 
 }
 
+function endOfTurn(character: Character, gameState: GameState) {
+    // console.log(character.turnStats.percentageStartOfTurnAttackBuffs);
+    // console.log(gameState.turn);
+
+    character.turnStats.percentageStartOfTurnAttackBuffs = character.turnStats.percentageStartOfTurnAttackBuffs.filter(buff => buff.turnBuffExpires > gameState.turn)
+}
 interface Buff {
     amount: number,
     turnBuffExpires: number
 }
 
+// TODO : rename to endOfTurn?
 function resetTurnStats(character: any) {
-
-    let startOfTurnBuffs: Buff[] = character.turnStats.percentageStartOfTurnAttackBuffs;
-    // if (character.turnStats.percentageStartOfTurnAttackBuffs.length > 0) {
-
-    //     startOfTurnBuffs = [{ amount: 100, turnBuffExpires: 10 }]
-    // }
     character.turnStats = {
         currentAttack: character.baseAttack,
         percentageLeaderAttack: 0,
@@ -206,7 +214,7 @@ function resetTurnStats(character: any) {
         additionalAttack: false,
         attackModifier: 0,
         attackEffectiveToAll: false,
-        percentageStartOfTurnAttackBuffs: startOfTurnBuffs
+        percentageStartOfTurnAttackBuffs: character.turnStats.percentageStartOfTurnAttackBuffs
     }
 }
 
@@ -289,29 +297,12 @@ function calculateAttackModifier(simCharacter: any, config: SimConfiguration): n
 function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): number {
     const stats = simCharacter.turnStats
     const battleStats = simCharacter.battleStats
-    // console.log(simCharacter.turnStats.percentageStartOfTurnAttackBuffs);
-
     const attackAfterLeaderSkills = Math.floor(stats.currentAttack * (1 + stats.percentageLeaderAttack) + stats.flatLeaderAttack);
-    // const sumofSOTBuffs = simCharacter.turnStats.percentageStartOfTurnAttackBuffs.forEach(buff => {
-
-    // });
-    // let test = simCharacter.turnStats.percentageStartOfTurnAttackBuffs.reduce((acc:any, value:any)=> {
-    //     acc = acc.concat(value+value);
-    //     return acc;
-    // },[])
     const test = simCharacter.turnStats.percentageStartOfTurnAttackBuffs.reduce((acc: any, value: any) => {
         acc = acc + value.amount;
         return acc;
     }, 0);
-    // let test = 0
-    console.log(test);
-    console.log(config.percentageStartOfTurnAttack);
-    console.log(stats.flatStartOfTurnAttack);
-    console.log(config.flatStartOfTurnAttack);
-
     const attackAfterStartOfTurn = Math.floor(attackAfterLeaderSkills * (1 + test + config.percentageStartOfTurnAttack) + stats.flatStartOfTurnAttack + config.flatStartOfTurnAttack);
-    console.log(attackAfterStartOfTurn);
-
     const attackAfterLinks = Math.floor(attackAfterStartOfTurn * (1 + stats.percentageLinksAttack));
     const attackAfterKiMultiplier = Math.floor(attackAfterLinks * (1 + stats.currentKiMultiplier)); // TODO: For not super attacks?
     const attackAfterStacking = Math.floor(attackAfterKiMultiplier * (1 + battleStats.stackAttack + battleStats.attackPerAttackPerformed + battleStats.attackPerAttackReceived + battleStats.attackPerAttackEvaded + battleStats.attackPerTurn + battleStats.attackPerEnemy + battleStats.attackPerFinalBlow))
