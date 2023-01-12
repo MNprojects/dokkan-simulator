@@ -1,5 +1,5 @@
 import { DokkanSimulator, Character, SimConfiguration, KiSpheres, Type, GameState } from '../src/dokkanSimulator';
-import { deepEqual, equal } from "assert";
+import { deepEqual, equal, strictEqual } from "assert";
 
 let baseCharacter: Character;
 let config: SimConfiguration;
@@ -59,6 +59,7 @@ beforeEach(function () {
             attackPerTurn: 0,
             attackPerEnemy: 0,
             attackPerFinalBlow: 0,
+            attackBuffs: []
         },
 
     }
@@ -408,14 +409,13 @@ describe('Single Character Simulation', function () {
         equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 51793);
     });
 
-    it.only('match scenario character - TEQ LR Gods', function () {
+    it('match attack scenario character - TEQ LR Gods', function () {
         baseCharacter.baseAttack = 21075;
         baseCharacter.startOfTurn = function (gameState: GameState) {
-            // TODO : Guard (when implementing being attacked)
             if (this.battleStats.appearances === 1) {
                 this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.77, turnBuffExpires: gameState.turn + 7 });
             }
-            this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 1.2, turnBuffExpires: 1 });
+            this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 1.2, turnBuffExpires: false });
         }
         baseCharacter.collectKiSpheres = function (collectedKiSpheres: KiSpheres, gameState: GameState) {
             this.turnStats.criticalChance += collectedKiSpheres.RBW * 0.07
@@ -440,7 +440,7 @@ describe('Single Character Simulation', function () {
             {
                 12: {
                     multiplier: 1.6,
-                    attackRaise: {},
+                    attackBuff: {},
                     extraCritChance: 0,
                     disableGuard: false,
                     stun: {},
@@ -456,8 +456,21 @@ describe('Single Character Simulation', function () {
                 }
             }
         ]
+        config.appearances = 5;
         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
-        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 51793);
+        if (Object.values(Object.entries(result.turnData)[0][1].attacks)[1]) {
+            // Crit
+            strictEqual(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 117360);
+        } else {
+            strictEqual(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 62592);
+        }
+
+        if (Object.values(Object.entries(result.turnData)[4][1].attacks)[1]) {
+            // Crit
+            strictEqual(Object.values(Object.entries(result.turnData)[4][1].attacks)[0], 86934);
+        } else {
+            strictEqual(Object.values(Object.entries(result.turnData)[4][1].attacks)[0], 46365);
+        }
     });
 });
 

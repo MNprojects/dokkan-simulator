@@ -33,7 +33,8 @@ export abstract class DokkanSimulator {
             attackPerAttackEvaded: 0,
             attackPerTurn: 0,
             attackPerEnemy: 0,
-            attackPerFinalBlow: 0
+            attackPerFinalBlow: 0,
+            attackBuff: [],
         }
 
         for (gameState.turn; simCharacter.battleStats.appearances < configOptions.appearances; gameState.turn++) {
@@ -69,10 +70,12 @@ export abstract class DokkanSimulator {
                 // TODO: refactor to a single attack loop rather than all this additionals work
                 let additionalAttacks: string[] = simCharacter.passiveAdditionalAttacks(gameState)
                 additionalAttacks = Object.values(additionalAttacks)
-                let attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState);
+                let [attack, critical] = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState);
 
                 // @ts-ignore
                 turns[turnName].attacks[attackCount] = attack;
+                // @ts-ignore
+                turns[turnName].attacks.critical = critical;
 
                 let additional = calculateAdditionalAttack(simCharacter, attackCount)
 
@@ -83,9 +86,9 @@ export abstract class DokkanSimulator {
                 additionalAttacks.forEach(additional => {
                     resetTurnStats(simCharacter);
                     if (additional === "super") {
-                        attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState, true);
+                        [attack, critical] = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState, true);
                     } else if (additional === "normal") {
-                        attack = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState, false);
+                        [attack, critical] = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState, false);
                     }
                     attackCount++
                     // @ts-ignore
@@ -98,7 +101,7 @@ export abstract class DokkanSimulator {
     }
 }
 
-function attackLoop(simCharacter: any, configOptions: SimConfiguration, collectedKiSpheres: KiSpheres, gameState: GameState, superAdditional?: boolean) {
+function attackLoop(simCharacter: any, configOptions: SimConfiguration, collectedKiSpheres: KiSpheres, gameState: GameState, superAdditional?: boolean): [number, boolean] {
 
     // Percentage - based leader skills - done
     // Flat leader skills - done
@@ -133,7 +136,11 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
     simCharacter.turnStats.attackModifier = calculateAttackModifier(simCharacter, configOptions)
     simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter, configOptions);
     afterAttack(simCharacter, gameState)
-    return simCharacter.turnStats.currentAttack
+    if (simCharacter.turnStats.attackModifier === 0.875) {
+        return [simCharacter.turnStats.currentAttack, true];
+    } else {
+        return [simCharacter.turnStats.currentAttack, false];
+    }
 }
 
 export interface Character {
@@ -175,6 +182,7 @@ export interface Character {
         attackPerTurn: number,
         attackPerEnemy: number,
         attackPerFinalBlow: number,
+        attackBuffs: Buff[],
     },
 }
 
@@ -191,7 +199,7 @@ function evalTurnBasedBuffs(character: Character, gameState: GameState) {
 }
 interface Buff {
     amount: number,
-    turnBuffExpires: number
+    turnBuffExpires: number | boolean
 }
 
 // TODO : rename to endOfTurn?
@@ -223,6 +231,7 @@ function resetTurnStats(character: any) {
         kiSphereBuffs: character.turnStats.kiSphereBuffs,
         SABuffs: character.turnStats.SABuffs,
         disableGuard: false,
+        criticalChance: 0,
     }
 }
 
@@ -413,7 +422,7 @@ function superAttackEffects(superAttackDetails: any, character: Character) {
 
 function afterAttack(simCharacter: Character, gameState: GameState) {
     if (simCharacter.turnStats.superAttackDetails.attackBuff) {
-        
+        simCharacter.battleStats.attackBuffs.push(simCharacter.turnStats.superAttackDetails.attackBuff)
     }
 }
 
