@@ -1,13 +1,5 @@
+import { Character, SimConfiguration, KiSpheres, GameState, SimResults } from './types';
 
-export interface GameState {
-    turn: number,
-    teamArray: number[]
-    currentRotation: number[],
-    leaderSkill1(char: Character): void,
-    leaderSkill2(char: Character): void,
-    enemies: any[], // TODO: Actual enemies with names/categories. Different phases?
-    // TODO: Items? Support Memories?
-}
 
 export abstract class DokkanSimulator {
     static singleCharacterSimulation(character: Character, configOptions: SimConfiguration): (SimResults) {
@@ -121,7 +113,7 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
     activateLinks(simCharacter, configOptions.activeLinks);
 
     // Ki multiplier
-    simCharacter.calculateKiMultiplier();
+    simCharacter.turnStats.currentKiMultiplier = calculateKiMultiplier(simCharacter);
 
     // Build - up passives
     // On Attack / on SA percentage - based passives
@@ -143,48 +135,6 @@ function attackLoop(simCharacter: any, configOptions: SimConfiguration, collecte
     }
 }
 
-export interface Character {
-    name: string,
-    title: string,
-    type: Type,
-    startOfTurn?(gameState: GameState): void,
-    collectKiSpheres?(kiSpheres: KiSpheres, gameState: GameState): void, // only for rules specific to the character
-    passiveAdditionalAttacks?(gameState: GameState): string[], //TODO: type rather than string
-    baseAttack: number,
-    maxKi: number,
-    categories: string[],
-    links: {}[], //TODO: type definition
-    additionalAttackChance: number,
-    criticalChance: number,
-    calculateKiMultiplier?(): void,
-    onAttack?(gameState: GameState): void,
-    superAttacks: {}[], //TODO: type definition
-    turnStats: {
-        percentageStartOfTurnAttackBuffs: Buff[],
-        attackEffectiveToAll: boolean,
-        criticalChance: number,
-        currentKi: number,
-        currentKiMultiplier: number,
-        flatStartOfTurnAttack: number,
-        percentageKiSphereAttack: KiSpheres,
-        flatKiSphereAttack: KiSpheres,
-        kiSphereBuffs: any[],
-        SABuffs: Buff[],
-        disableGuard: boolean,
-        superAttackDetails: any,
-    },
-    battleStats: {
-        appearances: number,
-        stackAttack: number,
-        attackPerAttackPerformed: number,
-        attackPerAttackReceived: number,
-        attackPerAttackEvaded: number,
-        attackPerTurn: number,
-        attackPerEnemy: number,
-        attackPerFinalBlow: number,
-        attackBuffs: Buff[],
-    },
-}
 
 function validateCharacter(character: Character) {
     if (character.baseAttack < 0) {
@@ -197,10 +147,7 @@ function evalTurnBasedBuffs(character: Character, gameState: GameState) {
     character.turnStats.percentageStartOfTurnAttackBuffs = character.turnStats.percentageStartOfTurnAttackBuffs.filter(buff => buff.turnBuffExpires > gameState.turn)
     character.turnStats.kiSphereBuffs = character.turnStats.kiSphereBuffs.filter(buff => buff.turnBuffExpires > gameState.turn)
 }
-interface Buff {
-    amount: number,
-    turnBuffExpires: number | boolean
-}
+
 
 // TODO : rename to endOfTurn?
 function resetTurnStats(character: any) {
@@ -214,7 +161,7 @@ function resetTurnStats(character: any) {
         percentageLinksAttack: 0,
         percentageKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
         flatKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
-        superAttackDetails: { // TODO Remove
+        superAttackDetails: {
             multiplier: 0.0,
             attackRaise: {},
             extraCritChance: 0,
@@ -235,18 +182,6 @@ function resetTurnStats(character: any) {
     }
 }
 
-export interface SimConfiguration {
-    appearances: number,
-    startingPosition: number,
-    desiredPosition: number,
-    leaderSkill1(char: Character): void,
-    leaderSkill2(char: Character): void,
-    percentageStartOfTurnAttack: number,
-    flatStartOfTurnAttack: number,
-    activeLinks: string[]
-    percentageObtainKiSphereAttack: KiSpheres,
-    flatObtainKiSphereAttack: KiSpheres,
-}
 
 function validateConfig(config: SimConfiguration) {
     let errorMessages = "";
@@ -266,14 +201,7 @@ function validateConfig(config: SimConfiguration) {
 }
 
 // doesn't account for candies etc
-export interface KiSpheres {
-    TEQ: number,
-    AGL: number,
-    STR: number,
-    PHY: number,
-    INT: number,
-    RBW: number
-}
+
 
 // standard rules that are true for every character
 function collectKiSpheres(character: Character, kiSpheres: KiSpheres) {
@@ -290,20 +218,8 @@ function collectKiSpheres(character: Character, kiSpheres: KiSpheres) {
     }
 }
 
-interface SimResults {
-    summary: Object,
-    turnData: Object,
-    team: Object,
-    config: Object
-}
 
-export enum Type {
-    TEQ = "TEQ",
-    INT = "INT",
-    PHY = "PHY",
-    STR = "STR",
-    AGL = "AGL",
-}
+
 
 function activateLinks(character: any, activeLinks: string[]) {
     character.links.forEach((link: any) => {
@@ -336,7 +252,7 @@ function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): nu
     }, 0);
     const attackAfterStartOfTurn = Math.floor(attackAfterLeaderSkills * (1 + SOTBuffs + config.percentageStartOfTurnAttack) + turnstats.flatStartOfTurnAttack + config.flatStartOfTurnAttack);
     const attackAfterLinks = Math.floor(attackAfterStartOfTurn * (1 + turnstats.percentageLinksAttack));
-    const attackAfterKiMultiplier = Math.floor(attackAfterLinks * (1 + turnstats.currentKiMultiplier)); // TODO: For not super attacks?
+    const attackAfterKiMultiplier = Math.floor(attackAfterLinks * turnstats.currentKiMultiplier);
     const attackAfterStacking = Math.floor(attackAfterKiMultiplier * (1 + battleStats.stackAttack + battleStats.attackPerAttackPerformed + battleStats.attackPerAttackReceived + battleStats.attackPerAttackEvaded + battleStats.attackPerTurn + battleStats.attackPerEnemy + battleStats.attackPerFinalBlow))
     const SABuffs = simCharacter.turnStats.SABuffs.reduce((accumulator: number, currentValue: any) => {
         accumulator = accumulator + currentValue.amount;
@@ -350,10 +266,15 @@ function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): nu
 
 
 
-function findBestKiSphereCollection(simCharacter: any, turnConfig: SimConfiguration): KiSpheres {
+function findBestKiSphereCollection(simCharacter: any, simConfig: SimConfiguration): KiSpheres {
+    if (simConfig.setKiSpheresEveryTurn) {
+        console.log("true");
+        console.log(simConfig.setKiSpheresEveryTurn);
+        return simConfig.setKiSpheresEveryTurn
+    }
     // TODO actually implement something - should probably simulate calc the attack from a few different options to mimic user choices on board
     // TODO (but team sim need to lower chances based on what is actually taken to not favour mono teams)
-    return { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 5, RBW: 1 }
+    return { TEQ: 0, AGL: 0, STR: 0, PHY: 10, INT: 0, RBW: 0 }
 }
 
 function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any) {
@@ -426,3 +347,20 @@ function afterAttack(simCharacter: Character, gameState: GameState) {
     }
 }
 
+function calculateKiMultiplier(simChar: Character): number {
+    // For LRs over 12 Ki
+    if (simChar.turnStats.currentKi > 12) {
+        let kidifference = simChar.turnStats.currentKi - 12
+        let multiplierIncrease = 200 - simChar.twelveKiMultiplier
+        let multiplierPerKi = multiplierIncrease / 12
+        let kiMultiplier = simChar.twelveKiMultiplier + (kidifference * multiplierPerKi)
+        return kiMultiplier
+    } else {
+        let kidifference = 12 - simChar.ki100PercentThreshold
+        let multiplierIncrease = simChar.twelveKiMultiplier - 1
+        let multiplierPerKi = multiplierIncrease / kidifference
+        let kiMultiplier = 1 + ((simChar.turnStats.currentKi - simChar.ki100PercentThreshold) * multiplierPerKi)
+        return kiMultiplier
+    }
+
+}

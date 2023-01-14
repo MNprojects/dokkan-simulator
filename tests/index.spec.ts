@@ -1,80 +1,17 @@
-import { DokkanSimulator, Character, SimConfiguration, KiSpheres, Type, GameState } from '../src/dokkanSimulator';
-import { deepEqual, equal, strictEqual } from "assert";
+import { DokkanSimulator } from '../src/dokkanSimulator';
+import { Character, CharacterBuilder, SimConfiguration, KiSpheres, Type, GameState, SimConfigurationBuilder } from '../src/types';
+import { equal, strictEqual } from "assert";
 
 let baseCharacter: Character;
 let config: SimConfiguration;
 
 beforeEach(function () {
-    baseCharacter =
-    {
-        name: 'Test',
-        title: 'Title',
-        type: Type.TEQ,
-        baseAttack: 10000,
-        maxKi: 12,
-        categories: [],
-        links: [],
-        additionalAttackChance: 0,
-        criticalChance: 0,
-        startOfTurn() { },
-        collectKiSpheres(kiSpheres: KiSpheres) {
-        },
-        passiveAdditionalAttacks(gameState: GameState): string[] { return [] },
-        calculateKiMultiplier() { },
-        onAttack() { },
-        superAttacks: [
-            {
-                12: {
-                    multiplier: 0.0,
-                    attackRaise: {},
-                    extraCritChance: 0,
-                    disableGuard: false,
-                    stun: {},
-                    seal: {},
-                    effectiveAgainstAll: false,
-                    debuffTargetDEF: {}
-                }
-            }
-        ],
-        turnStats: {
-            percentageStartOfTurnAttackBuffs: [],
-            attackEffectiveToAll: false,
-            criticalChance: 0,
-            currentKi: 0,
-            currentKiMultiplier: 0,
-            flatStartOfTurnAttack: 0,
-            percentageKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
-            flatKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
-            kiSphereBuffs: [],
-            SABuffs: [],
-            disableGuard: false,
-            superAttackDetails: {},
-        },
-        battleStats: {
-            appearances: 0,
-            stackAttack: 0,
-            attackPerAttackPerformed: 0,
-            attackPerAttackReceived: 0,
-            attackPerAttackEvaded: 0,
-            attackPerTurn: 0,
-            attackPerEnemy: 0,
-            attackPerFinalBlow: 0,
-            attackBuffs: []
-        },
-
-    }
-    config = {
-        appearances: 3,
-        startingPosition: 0,
-        desiredPosition: 1,
-        leaderSkill1(char: any) { },
-        leaderSkill2(char: any) { },
-        percentageStartOfTurnAttack: 0,
-        flatStartOfTurnAttack: 0,
-        activeLinks: [],
-        percentageObtainKiSphereAttack: { TEQ: 10, AGL: 10, STR: 10, PHY: 10, INT: 10, RBW: 10 },
-        flatObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
-    }
+    baseCharacter = new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [], 1)
+        .build()
+    config = new SimConfigurationBuilder()
+        .appearances(3)
+        .setKiSpheresEveryTurn({ TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 5, RBW: 1 })
+        .build()
 })
 
 describe('Single Character Simulation', function () {
@@ -226,16 +163,13 @@ describe('Single Character Simulation', function () {
 
     it('should have attack modified by the ki multiplier', function () {
         baseCharacter.startOfTurn = function () {
-            this.turnStats.currentKi += 12
+            this.turnStats.currentKi += 12;
         }
-        baseCharacter.calculateKiMultiplier = function () {
-            let twelveKiMultiplier = 0.5
-            let oneHundredPercentageThreshold = 4
-            let multiplierPerKi = (twelveKiMultiplier - 1) / (12 - oneHundredPercentageThreshold);
-            this.turnStats.currentKiMultiplier = 1 + ((this.turnStats.currentKi - oneHundredPercentageThreshold) * multiplierPerKi)
-        }
+        baseCharacter.twelveKiMultiplier = 1.4;
+        baseCharacter.ki100PercentThreshold = 3;
+
         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
-        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 15000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 14000);
     });
 
     it('should have attack modified by build up passive', function () {
@@ -260,7 +194,7 @@ describe('Single Character Simulation', function () {
         baseCharacter.superAttacks = [
             {
                 12: {
-                    multiplier: 0.5,
+                    multiplier: 6.3,
                 }
             }, { 18: {} }
         ]
@@ -271,14 +205,14 @@ describe('Single Character Simulation', function () {
 
         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
 
-        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 15000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 73000);
     });
 
     it('should use the SA for the Ki threshold reached', function () {
         baseCharacter.superAttacks = [
             {
                 12: {
-                    multiplier: 0.5,
+                    multiplier: 0.5, //unrealistic number for immense damage etc
                 }
             }, { 9: { multiplier: 0.4 } }
         ]
@@ -312,12 +246,9 @@ describe('Single Character Simulation', function () {
             { "Saiyan Roar": function (char: any) { char.turnStats.percentageLinksAttack += 0.25 } },
             { "Prepared for Battle": function (char: any) { char.turnStats.percentageLinksAttack += 0.3 } },
         ]
-        baseCharacter.calculateKiMultiplier = function () {
-            let twelveKiMultiplier = 0.5
-            let oneHundredPercentageThreshold = 4
-            let multiplierPerKi = (twelveKiMultiplier - 1) / (12 - oneHundredPercentageThreshold);
-            this.turnStats.currentKiMultiplier = 1 + ((this.turnStats.currentKi - oneHundredPercentageThreshold) * multiplierPerKi)
-        }
+        baseCharacter.twelveKiMultiplier = 1.5;
+        baseCharacter.ki100PercentThreshold = 4;
+
         baseCharacter.superAttacks = [
             {
                 12: {
@@ -439,7 +370,7 @@ describe('Single Character Simulation', function () {
         baseCharacter.superAttacks = [
             {
                 12: {
-                    multiplier: 1.6,
+                    multiplier: 4.25,
                     attackBuff: {},
                     extraCritChance: 0,
                     disableGuard: false,
@@ -451,7 +382,7 @@ describe('Single Character Simulation', function () {
             },
             {
                 18: {
-                    multiplier: 1.8,
+                    multiplier: 5.7,
 
                 }
             }
@@ -472,6 +403,7 @@ describe('Single Character Simulation', function () {
             strictEqual(Object.values(Object.entries(result.turnData)[4][1].attacks)[0], 46365);
         }
     });
+
 });
 
 
