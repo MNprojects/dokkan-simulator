@@ -15,8 +15,9 @@ describe('Character Builder', function () {
         deepStrictEqual(standardChar.superAttacks, [])
         strictEqual(standardChar.twelveKiMultiplier, 1)
     });
-    it('should not allow negative numbers for base attack', function () {
+    it('should not allow negative (or zero) numbers for base attack', function () {
         throws(() => { new CharacterBuilder("Test", "Title", Type.TEQ, -10000, 12, [], 1).build() })
+        throws(() => { new CharacterBuilder("Test", "Title", Type.TEQ, 0, 12, [], 1).build() })
     });
     it('should only allow 12 or 24 for MaxKi', function () {
         let URKiChar = new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [], 1).build()
@@ -32,6 +33,10 @@ describe('Character Builder', function () {
         for (let index = 25; index < 30; index++) {
             throws(() => { new CharacterBuilder("Test", "Title", Type.TEQ, 10000, index, [], 1).build() })
         }
+    });
+    it('should not allow negative (or zero) numbers for twelveKiMultiplier', function () {
+        throws(() => { new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [], -1).build() })
+        throws(() => { new CharacterBuilder("Test", "Title", Type.TEQ, 10, 12, [], 0).build() })
     });
 });
 

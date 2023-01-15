@@ -170,9 +170,9 @@ export class CharacterBuilder {
         if (this._character.maxKi != 24 && this._character.maxKi != 12) {
             throw new Error("Max Ki is either 12 for URs or 24 for LRs");
         }
-        // if (this._character.superAttacks) {
-
-        // }
+        if (this._character.twelveKiMultiplier < 1) {
+            throw new Error("The Twelve Ki Multipler should be a positive number");
+        }
     }
 
     categories(categories: string[]): CharacterBuilder {
