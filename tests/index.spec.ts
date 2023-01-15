@@ -7,7 +7,7 @@ let config: SimConfiguration;
 
 beforeEach(function () {
     baseCharacter = new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [], 1)
-    .build()
+        .build()
     config = new SimConfigurationBuilder()
         .appearances(3)
         .setKiSpheresEveryTurn({ TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 5, RBW: 1 })
@@ -193,11 +193,10 @@ describe('Single Character Simulation', function () {
     it('should have attack modified by SA modifier if ki threshold is reached', function () {
         baseCharacter.superAttacks = [
             {
-
                 kiThreshold: 12,
                 multiplier: 6.3,
-
-            }, {
+            },
+            {
                 kiThreshold: 18,
                 multiplier: 7.2
             }
@@ -217,8 +216,7 @@ describe('Single Character Simulation', function () {
             {
                 kiThreshold: 12,
                 multiplier: 0.5, //unrealistic number for immense damage etc
-            }
-            ,
+            },
             {
                 kiThreshold: 11,
                 multiplier: 0.4
@@ -283,7 +281,6 @@ describe('Single Character Simulation', function () {
             {
                 kiThreshold: 12,
                 multiplier: 0.5,
-
             },
             {
                 kiThreshold: 11,

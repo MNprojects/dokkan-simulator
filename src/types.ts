@@ -164,7 +164,7 @@ export class CharacterBuilder {
         if (this._character.baseAttack < 1) {
             throw new Error("Base Attack must be a positive number");
         }
-        else if (this._character.baseAttack < 30000) {
+        else if (this._character.baseAttack > 30000) {
             console.warn("Warning: The base attack is unrealistically high")
         }
         if (this._character.maxKi != 24 && this._character.maxKi != 12) {

@@ -283,20 +283,20 @@ function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any)
 // TODO: builder pattern for config and character?
 
 function selectSuperAttack(simChar: any, superAdditional?: boolean) {
-    console.log(simChar.superAttacks);
     let highestSANum = 0;
     let saDetails;
 
     if (superAdditional) {
         highestSANum = 24
-        
+
         simChar.superAttacks.forEach((superAttack: any) => {
             if (simChar.turnStats.currentKi >= superAttack.kiThreshold && superAttack.kiThreshold <= highestSANum) {
                 highestSANum = superAttack.kiThreshold;
                 saDetails = superAttack
             }
         });
-    } else {
+    }
+    else {
         simChar.superAttacks.forEach((superAttack: any) => {
             if (simChar.turnStats.currentKi >= superAttack.kiThreshold && superAttack.kiThreshold >= highestSANum) {
                 highestSANum = superAttack.kiThreshold;
