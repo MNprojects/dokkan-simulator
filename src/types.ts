@@ -53,6 +53,19 @@ export enum Type {
     AGL = "AGL",
 }
 
+export interface SuperAttack {
+    kiThreshold: number,
+    multiplier: number,
+    attackBuff?: {},
+    extraCritChance?: number,
+    disableGuard?: boolean,
+    stun?: {},
+    seal?: {},
+    effectiveAgainstAll?: boolean,
+    debuffTargetDEF?: {}
+
+}
+
 export interface Character {
     name: string,
     title: string,
@@ -69,7 +82,7 @@ export interface Character {
     ki100PercentThreshold: number,
     twelveKiMultiplier: number,
     onAttack(gameState: GameState): void,
-    superAttacks: {}[], //TODO: type definition
+    superAttacks: SuperAttack[], //TODO: type definition
     turnStats: {
         percentageStartOfTurnAttackBuffs: Buff[],
         attackEffectiveToAll: boolean,
@@ -100,8 +113,7 @@ export interface Character {
 export class CharacterBuilder {
     private readonly _character: Character;
 
-    constructor(name: string, title: string, type: Type, baseAttack: number, maxKi: number, superAttacks: {}[], twelveKiMultiplier: number) {
-        // TODO Validation
+    constructor(name: string, title: string, type: Type, baseAttack: number, maxKi: number, superAttacks: SuperAttack[], twelveKiMultiplier: number) {
         this._character = {
             name: name,
             title: title,
@@ -145,6 +157,22 @@ export class CharacterBuilder {
                 attackBuffs: [],
             },
         }
+        this.validate()
+    }
+
+    validate() {
+        if (this._character.baseAttack < 1) {
+            throw new Error("Base Attack must be a positive number");
+        }
+        else if (this._character.baseAttack < 30000) {
+            console.warn("Warning: The base attack is unrealistically high")
+        }
+        if (this._character.maxKi != 24 && this._character.maxKi != 12) {
+            throw new Error("Max Ki is either 12 for URs or 24 for LRs");
+        }
+        // if (this._character.superAttacks) {
+
+        // }
     }
 
     categories(categories: string[]): CharacterBuilder {
@@ -171,7 +199,6 @@ export class SimConfigurationBuilder {
     private readonly _config: SimConfiguration;
 
     constructor() {
-        // TODO Validation
         this._config = {
             appearances: 10,
             startingPosition: 0,
@@ -182,9 +209,11 @@ export class SimConfigurationBuilder {
             flatStartOfTurnAttack: 0,
             activeLinks: [],
             percentageObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
-            flatObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
-            setKiSpheresEveryTurn: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+            flatObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 }
         }
+    }
+    validateConfig() {
+
     }
     appearances(appearances: number): SimConfigurationBuilder {
         this._config.appearances = appearances;

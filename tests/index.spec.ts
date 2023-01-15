@@ -7,7 +7,7 @@ let config: SimConfiguration;
 
 beforeEach(function () {
     baseCharacter = new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [], 1)
-        .build()
+    .build()
     config = new SimConfigurationBuilder()
         .appearances(3)
         .setKiSpheresEveryTurn({ TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 5, RBW: 1 })
@@ -193,10 +193,14 @@ describe('Single Character Simulation', function () {
     it('should have attack modified by SA modifier if ki threshold is reached', function () {
         baseCharacter.superAttacks = [
             {
-                12: {
-                    multiplier: 6.3,
-                }
-            }, { 18: {} }
+
+                kiThreshold: 12,
+                multiplier: 6.3,
+
+            }, {
+                kiThreshold: 18,
+                multiplier: 7.2
+            }
         ]
 
         baseCharacter.startOfTurn = function () {
@@ -211,10 +215,14 @@ describe('Single Character Simulation', function () {
     it('should use the SA for the Ki threshold reached', function () {
         baseCharacter.superAttacks = [
             {
-                12: {
-                    multiplier: 0.5, //unrealistic number for immense damage etc
-                }
-            }, { 9: { multiplier: 0.4 } }
+                kiThreshold: 12,
+                multiplier: 0.5, //unrealistic number for immense damage etc
+            }
+            ,
+            {
+                kiThreshold: 11,
+                multiplier: 0.4
+            }
         ]
 
         baseCharacter.onAttack = function () {
@@ -251,9 +259,8 @@ describe('Single Character Simulation', function () {
 
         baseCharacter.superAttacks = [
             {
-                12: {
-                    multiplier: 0.5,
-                }
+                kiThreshold: 12,
+                multiplier: 0.5,
             }
         ]
         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
@@ -274,14 +281,13 @@ describe('Single Character Simulation', function () {
 
         baseCharacter.superAttacks = [
             {
-                12: {
-                    multiplier: 0.5,
-                }
+                kiThreshold: 12,
+                multiplier: 0.5,
+
             },
             {
-                11: {
-                    multiplier: 0.4
-                }
+                kiThreshold: 11,
+                multiplier: 0.4
             }
         ]
 
@@ -331,9 +337,8 @@ describe('Single Character Simulation', function () {
         }
         baseCharacter.superAttacks = [
             {
-                12: {
-                    multiplier: 1.5,
-                }
+                kiThreshold: 12,
+                multiplier: 1.5,
             }
         ]
         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
@@ -369,22 +374,20 @@ describe('Single Character Simulation', function () {
         };
         baseCharacter.superAttacks = [
             {
-                12: {
-                    multiplier: 4.25,
-                    attackBuff: {},
-                    extraCritChance: 0,
-                    disableGuard: false,
-                    stun: {},
-                    seal: {},
-                    effectiveAgainstAll: false,
-                    debuffTargetDEF: {}
-                }
+                kiThreshold: 12,
+                multiplier: 4.25,
+                attackBuff: {},
+                extraCritChance: 0,
+                disableGuard: false,
+                stun: {},
+                seal: {},
+                effectiveAgainstAll: false,
+                debuffTargetDEF: {}
+
             },
             {
-                18: {
-                    multiplier: 5.7,
-
-                }
+                kiThreshold: 18,
+                multiplier: 5.7,
             }
         ]
         config.appearances = 5;

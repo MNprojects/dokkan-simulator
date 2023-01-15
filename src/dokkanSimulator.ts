@@ -162,6 +162,7 @@ function resetTurnStats(character: any) {
         percentageKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
         flatKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
         superAttackDetails: {
+            kiThreshold: 0,
             multiplier: 0.0,
             attackRaise: {},
             extraCritChance: 0,
@@ -268,8 +269,6 @@ function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): nu
 
 function findBestKiSphereCollection(simCharacter: any, simConfig: SimConfiguration): KiSpheres {
     if (simConfig.setKiSpheresEveryTurn) {
-        console.log("true");
-        console.log(simConfig.setKiSpheresEveryTurn);
         return simConfig.setKiSpheresEveryTurn
     }
     // TODO actually implement something - should probably simulate calc the attack from a few different options to mimic user choices on board
@@ -284,22 +283,24 @@ function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any)
 // TODO: builder pattern for config and character?
 
 function selectSuperAttack(simChar: any, superAdditional?: boolean) {
+    console.log(simChar.superAttacks);
     let highestSANum = 0;
     let saDetails;
 
     if (superAdditional) {
         highestSANum = 24
+        
         simChar.superAttacks.forEach((superAttack: any) => {
-            if (simChar.turnStats.currentKi >= parseInt(Object.keys(superAttack)[0]) && parseInt(Object.keys(superAttack)[0]) <= highestSANum) {
-                highestSANum = parseInt(Object.keys(superAttack)[0]);
-                saDetails = Object.values(superAttack)[0]
+            if (simChar.turnStats.currentKi >= superAttack.kiThreshold && superAttack.kiThreshold <= highestSANum) {
+                highestSANum = superAttack.kiThreshold;
+                saDetails = superAttack
             }
         });
     } else {
         simChar.superAttacks.forEach((superAttack: any) => {
-            if (simChar.turnStats.currentKi >= parseInt(Object.keys(superAttack)[0]) && parseInt(Object.keys(superAttack)[0]) >= highestSANum) {
-                highestSANum = parseInt(Object.keys(superAttack)[0]);
-                saDetails = Object.values(superAttack)[0]
+            if (simChar.turnStats.currentKi >= superAttack.kiThreshold && superAttack.kiThreshold >= highestSANum) {
+                highestSANum = superAttack.kiThreshold;
+                saDetails = superAttack
             }
         });
     }
