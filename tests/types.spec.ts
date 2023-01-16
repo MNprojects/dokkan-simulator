@@ -34,6 +34,41 @@ describe('Character Builder', function () {
             throws(() => { new CharacterBuilder("Test", "Title", Type.TEQ, 10000, index, [], 1).build() })
         }
     });
+    it('should only allow numbers between 1 and 24 (inc) for the Ki Threshold of a Super Attack', function () {
+        throws(() => {
+            new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [{
+                kiThreshold: 0,
+                multiplier: 1,
+            },
+            {
+                kiThreshold: 1,
+                multiplier: 1,
+            }], 1).build()
+        })
+        throws(() => {
+            new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [{
+                kiThreshold: 1,
+                multiplier: 1,
+            },
+            {
+                kiThreshold: -10,
+                multiplier: 1,
+            }], 1).build()
+        })
+        throws(() => {
+            new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [{
+                kiThreshold: 25,
+                multiplier: 1,
+            }], 1).build()
+        })
+        for (let index = 1; index < 25; index++) {
+            let kiChar = new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [{
+                kiThreshold: index,
+                multiplier: 1,
+            }], 1).build()
+            strictEqual(kiChar.superAttacks[0].kiThreshold, index)
+        }
+    });
     it('should not allow negative (or zero) numbers for twelveKiMultiplier', function () {
         throws(() => { new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [], -1).build() })
         throws(() => { new CharacterBuilder("Test", "Title", Type.TEQ, 10, 12, [], 0).build() })

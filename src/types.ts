@@ -63,7 +63,7 @@ export interface SuperAttack {
     seal?: {},
     effectiveAgainstAll?: boolean,
     debuffTargetDEF?: {}
-
+    // TODO: Conditions i.e., unit super attack
 }
 
 export interface Character {
@@ -167,12 +167,27 @@ export class CharacterBuilder {
         else if (this._character.baseAttack > 30000) {
             console.warn("Warning: The base attack is unrealistically high")
         }
+
         if (this._character.maxKi != 24 && this._character.maxKi != 12) {
             throw new Error("Max Ki is either 12 for URs or 24 for LRs");
         }
+
         if (this._character.twelveKiMultiplier < 1) {
             throw new Error("The Twelve Ki Multipler should be a positive number");
         }
+        else if (this._character.twelveKiMultiplier > 2) {
+            console.warn("Warning: The Twelve Ki Multiplier is unrealistically high")
+        }
+        this._character.superAttacks.forEach(superAttack => {
+
+            if (superAttack.kiThreshold < 1) {
+                throw new Error("The Ki Threshold for a Super Attack be a positive number");
+            }
+            else if (superAttack.kiThreshold > 24) {
+                throw new Error("The Ki Threshold for a Super Attack be less than 24");
+            }
+
+        });
     }
 
     categories(categories: string[]): CharacterBuilder {
