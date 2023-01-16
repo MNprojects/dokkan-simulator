@@ -186,6 +186,9 @@ export class CharacterBuilder {
             else if (superAttack.kiThreshold > 24) {
                 throw new Error("The Ki Threshold for a Super Attack be less than 24");
             }
+            else if (superAttack.multiplier <= 0) {
+                throw new Error("The Multiplier for a Super Attack be a positive number");
+            }
 
         });
     }
@@ -210,6 +213,7 @@ export class CharacterBuilder {
     }
 }
 
+// TODO: documentation comments
 export class SimConfigurationBuilder {
     private readonly _config: SimConfiguration;
 
@@ -227,21 +231,42 @@ export class SimConfigurationBuilder {
             flatObtainKiSphereAttack: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 }
         }
     }
-    validateConfig() {
 
-    }
+
     appearances(appearances: number): SimConfigurationBuilder {
+        if (appearances < 1) {
+            throw new Error("Appearances must be a positive number");
+        }
         this._config.appearances = appearances;
         return this;
     }
+
+    /**
+     * Sets the Starting Position slot that a character will first appear in during battle.
+     * @param startingPosition Must be in the range 0 - 6, inclusive.
+     */
     startingPosition(startingPosition: number): SimConfigurationBuilder {
+        if (startingPosition != Number(startingPosition.toFixed())) {
+            throw new Error("Starting Position must be a whole (positive) number");
+        }
+        if (startingPosition < 0 || startingPosition > 6) {
+            throw new Error("Starting Position must be a positive number between 0 and 6 (inc)");
+        }
         this._config.startingPosition = startingPosition;
         return this;
     }
+
     desiredPosition(desiredPosition: number): SimConfigurationBuilder {
+        if (desiredPosition != Number(desiredPosition.toFixed())) {
+            throw new Error("Desired Position must be a whole (positive) number");
+        }
+        if (desiredPosition < 0 || desiredPosition > 6) {
+            throw new Error("Desired Position must be a positive number between 0 and 6 (inc)");
+        }
         this._config.desiredPosition = desiredPosition;
         return this;
     }
+    // TODO: Validation (What can I even do here?)
     leaderSkill1(leaderSkill1: (char: Character) => {}): SimConfigurationBuilder {
         this._config.leaderSkill1 = leaderSkill1;
         return this;
@@ -250,6 +275,11 @@ export class SimConfigurationBuilder {
         this._config.leaderSkill2 = leaderSkill2;
         return this;
     }
+
+    /**
+     * Applies a start of turn buff mimicing a teammate i.e., Turles +40% attack. Can be negative to cater for debuffs i.e., ToP INT Golden Freiza -15% to Super allies
+     * @param percentageStartOfTurnAttack Decimal representation of the percentage increase. i.e., 0.4 is a 40% buff
+     */
     percentageStartOfTurnAttack(percentageStartOfTurnAttack: number): SimConfigurationBuilder {
         this._config.percentageStartOfTurnAttack = percentageStartOfTurnAttack;
         return this;
@@ -263,6 +293,11 @@ export class SimConfigurationBuilder {
         return this;
     }
     percentageObtainKiSphereAttack(percentageObtainKiSphereAttack: KiSpheres): SimConfigurationBuilder {
+        Object.entries(percentageObtainKiSphereAttack).forEach(kiSphere => {
+            if (kiSphere[1] < 0) {
+                // throw new Error("Ki Spheres");
+            }
+        });
         this._config.percentageObtainKiSphereAttack = percentageObtainKiSphereAttack;
         return this;
     }
@@ -271,6 +306,33 @@ export class SimConfigurationBuilder {
         return this;
     }
     setKiSpheresEveryTurn(setKiSpheresEveryTurn: KiSpheres): SimConfigurationBuilder {
+        let chosenType: string | null = null;
+        Object.entries(setKiSpheresEveryTurn).forEach(kiSphere => {
+            if (kiSphere[1] < 0) {
+                throw new Error("Set Ki Spheres Every Turn cannot have any negative numbers");
+            }
+            if (kiSphere[1] != Number(kiSphere[1].toFixed())) {
+                throw new Error("Set Ki Spheres Every Turn can only be whole numbers");
+            }
+            if (kiSphere[1] > 24) {
+                throw new Error("Set Ki Spheres Every Turn can only go up to a maximum of 24");
+            }
+            if (kiSphere[1] > 0 && kiSphere[0] != "RBW") {
+                if (chosenType != null) {
+                    throw new Error("Set Ki Spheres Every Turn can only have a single typed ki sphere with a value above 0");
+                } else {
+                    chosenType = kiSphere[0]
+                }
+            }
+        });
+
+        if (setKiSpheresEveryTurn.RBW > 5) {
+            throw new Error("Set Ki Spheres Every Turn can only have up to 5 RBW spheres");
+        }
+        else if (setKiSpheresEveryTurn.RBW === 5 && chosenType != null) {
+            throw new Error("Set Ki Spheres Every Turn can't have a typed ki sphere with 5 RBW spheres");
+        }
+
         this._config.setKiSpheresEveryTurn = setKiSpheresEveryTurn;
         return this;
     }
