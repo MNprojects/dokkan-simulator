@@ -177,7 +177,7 @@ describe('Sim Configuration Builder', function () {
                 .setKiSpheresEveryTurn({ TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 25, RBW: 1 })
                 .build()
         })
-        for (let index = 0; index < 25; index++) {
+        for (let index = 1; index < 25; index++) {
             let config = new SimConfigurationBuilder()
                 .setKiSpheresEveryTurn({ TEQ: 0, AGL: 0, STR: index, PHY: 0, INT: 0, RBW: 1 })
                 .build()
@@ -194,9 +194,9 @@ describe('Sim Configuration Builder', function () {
     });
 
     it('should allow up to 5 RBW spheres only', function () {
-        for (let index = 0; index < 6; index++) {
+        for (let index = 0; index < 5; index++) {
             let config = new SimConfigurationBuilder()
-                .setKiSpheresEveryTurn({ TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: index })
+                .setKiSpheresEveryTurn({ TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 1, RBW: index })
                 .build()
             strictEqual(config.setKiSpheresEveryTurn?.RBW, index);
         }
@@ -213,10 +213,12 @@ describe('Sim Configuration Builder', function () {
                 .build()
         })
     });
-
-
-    // must have at least 1 typed sphere
-    // must have a typed sphere with RBW unless 5
-
-
+    it('should have a typed spheres with RBW spheres lower than 5', function () {
+        throws(() => {
+            new SimConfigurationBuilder()
+                .setKiSpheresEveryTurn({ TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 4 })
+                .build()
+        })
+    });
+    // TODO: Tests for percentageObtainKiSphereAttack & flatObtainKiSphereAttack
 });
