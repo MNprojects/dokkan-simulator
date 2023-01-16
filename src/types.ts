@@ -332,6 +332,9 @@ export class SimConfigurationBuilder {
         else if (setKiSpheresEveryTurn.RBW === 5 && chosenType != null) {
             throw new Error("Set Ki Spheres Every Turn can't have a typed ki sphere with 5 RBW spheres");
         }
+        else if (setKiSpheresEveryTurn.RBW > 0 && chosenType === null) {
+            throw new Error("Set Ki Spheres Every Turn can't have a RBW spheres (below 5) without at least 1 typed sphere");
+        }
 
         this._config.setKiSpheresEveryTurn = setKiSpheresEveryTurn;
         return this;
