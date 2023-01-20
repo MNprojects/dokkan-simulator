@@ -1,4 +1,4 @@
-import { Character, SimConfiguration, KiSpheres, GameState, SimResults, Type, Class } from './types';
+import { Character, SimConfiguration, KiSpheres, GameState, SimResults, Type, Class, TurnData } from './types';
 
 
 export abstract class DokkanSimulator {
@@ -20,8 +20,14 @@ export abstract class DokkanSimulator {
             }]
 
         }
-        let results: SimResults = { summary: {}, turnData: {}, team: {}, config: {} }
-        let turns = {};
+        let results: SimResults = {
+            summary: {
+                averageAttackPerTurn: 0,
+                percentageOfAttackThatCrit: 0,
+                percentageOfTurnsWithAdditional: 0
+            },
+            turnData: [], team: {}, config: {}
+        }
         let currentPosition = configOptions.startingPosition;
         let simCharacter: Character = character
 
@@ -44,26 +50,19 @@ export abstract class DokkanSimulator {
                 // Collect Ki Spheres
                 let collectedKiSpheres = findBestKiSphereCollection(simCharacter, configOptions);
 
-                // add results to turnData
-                let turnName: string = 'turn ' + gameState.turn;
-                // @ts-ignore
-                turns[turnName] = {
+                let turn: TurnData = {
+                    turn: gameState.turn,
                     appearanceCount: simCharacter.battleStats.appearances,
-                    KiSpheres: collectedKiSpheres,
-                    attacks: {}
+                    kiSpheres: collectedKiSpheres,
+                    attacks: []
                 }
 
                 // Attack loop
                 let attackCount = 1;
                 // TODO: refactor to a single attack loop rather than all this additionals work
                 simCharacter.passiveAdditionalAttacks(gameState)
-                // simCharacter.turnStats.additionalAttacks = Object.values(additionalAttacks)
                 let [attack, critical] = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState);
-
-                // @ts-ignore
-                turns[turnName].attacks[attackCount] = attack;
-                // @ts-ignore
-                turns[turnName].attacks.critical = critical;
+                turn.attacks.push({ count: 1, attack: attack, critical: critical })
 
                 let additional = calculateAdditionalAttack(simCharacter, attackCount)
 
@@ -73,19 +72,31 @@ export abstract class DokkanSimulator {
 
                 simCharacter.turnStats.additionalAttacks.forEach(additional => {
                     resetTurnStats(simCharacter);
-
                     if (additional === "super") {
                         [attack, critical] = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState, true);
                     } else if (additional === "normal") {
                         [attack, critical] = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState, false);
                     }
                     attackCount++
-                    // @ts-ignore
-                    turns[turnName].attacks[attackCount] = attack;
+                    turn.attacks.push({ count: 1, attack: attack, critical: critical })
                 });
+                results.turnData.push(turn)
             }
         }
-        results.turnData = turns
+        let attackPerTurn: number = 0;
+        // Object.values(turns).forEach(turn => {
+        //     console.log(turn);
+
+        //     // console.log(Object.values(Object(turn)));
+        //     // attackPerTurn += 
+
+        // })
+
+        results.summary = {
+            averageAttackPerTurn: attackPerTurn,
+            percentageOfAttackThatCrit: 0,
+            percentageOfTurnsWithAdditional: 0
+        }
         return results
     }
 }
@@ -314,7 +325,8 @@ function setAttackDetails(simChar: any, superAdditional?: boolean) {
     return saDetails;
 }
 
-function calculateAdditionalAttack(simCharacter: any, chances: number) {
+// TODO: find a new name that better represents what is happening 
+function calculateAdditionalAttack(simCharacter: any, chances: number): string | undefined {
     const rng = Math.random()
     for (let index = 0; index < chances; index++) {
         if (simCharacter.additionalAttackChance >= rng) {

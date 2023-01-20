@@ -54,10 +54,27 @@ export interface SimConfiguration {
 
 
 export interface SimResults {
-    summary: Object,
-    turnData: Object,
+    summary: {
+        averageAttackPerTurn: number,
+        percentageOfAttackThatCrit: number,
+        percentageOfTurnsWithAdditional: number,
+    },
+    turnData: TurnData[],
     team: Object,
     config: Object
+}
+
+export interface TurnData {
+    turn: number,
+    appearanceCount: number,
+    kiSpheres: KiSpheres,
+    attacks: AttackResult[]
+}
+
+export interface AttackResult {
+    count: number,
+    attack: number,
+    critical: boolean
 }
 
 export enum Type {
@@ -160,7 +177,7 @@ export class CharacterBuilder {
             startOfTurn: (gameState: GameState): void => { },
             collectKiSpheres: (kiSpheres: KiSpheres, gameState: GameState): void => { },
             passiveAdditionalAttacks: (gameState: GameState): void => { },
-            onAttack: () => { },
+            onAttack: (gameState: GameState): void => { },
             turnStats: {
                 percentageStartOfTurnAttackBuffs: [],
                 percentageLeaderAttack: 0,
@@ -253,8 +270,10 @@ export class CharacterBuilder {
         this._character.passiveAdditionalAttacks = passiveAdditionalAttacksFunction;
         return this;
     }
-
-    onAttack() { }
+    onAttack(onAttackFunction: (gameState: GameState) => void): CharacterBuilder {
+        this._character.onAttack = onAttackFunction;
+        return this;
+    }
 
     build(): Character {
         return this._character;
