@@ -11,10 +11,25 @@ export interface GameState {
     turn: number,
     teamArray: number[]
     currentRotation: number[],
-    leaderSkill1(char: Character): void,
-    leaderSkill2(char: Character): void,
-    enemies: any[], // TODO: Actual enemies with names/categories. Different phases?
+    leaderSkill1(char: Character, gameState: GameState): void,
+    leaderSkill2(char: Character, gameState: GameState): void,
+    enemies: Enemy[], // TODO: Actual enemies with names/categories. Different phases?
     // TODO: Items? Support Memories?
+}
+
+export interface Enemy {
+    name: string,
+    type: Type,
+    class: Class,
+    categories: string[],
+    sealed: boolean,
+    stunned: boolean,
+
+}
+
+export enum Class {
+    Super = "Super",
+    Extreme = "Extreme"
 }
 
 export interface Buff {
@@ -27,8 +42,8 @@ export interface SimConfiguration {
     appearances: number,
     startingPosition: number,
     desiredPosition: number,
-    leaderSkill1(char: Character): void,
-    leaderSkill2(char: Character): void,
+    leaderSkill1(char: Character, gameState: GameState): void,
+    leaderSkill2(char: Character, gameState: GameState): void,
     percentageStartOfTurnAttack: number,
     flatStartOfTurnAttack: number,
     activeLinks: string[]
@@ -70,21 +85,24 @@ export interface Character {
     name: string,
     title: string,
     type: Type,
-    startOfTurn(gameState: GameState): void,
-    collectKiSpheres(kiSpheres: KiSpheres, gameState: GameState): void, // only for rules specific to the character
-    passiveAdditionalAttacks(gameState: GameState): string[], //TODO: type rather than string
+    class: Class,
     baseAttack: number,
     maxKi: number,
     categories: string[],
-    links: {}[], //TODO: type definition
+    links: Link[], //TODO: type definition
     additionalAttackChance: number,
     criticalChance: number,
     ki100PercentThreshold: number,
     twelveKiMultiplier: number,
+    startOfTurn(gameState: GameState): void,
+    collectKiSpheres(kiSpheres: KiSpheres, gameState: GameState): void, // only for rules specific to the character
+    passiveAdditionalAttacks(gameState: GameState): void, //TODO: type rather than string
     onAttack(gameState: GameState): void,
     superAttacks: SuperAttack[], //TODO: type definition
     turnStats: {
         percentageStartOfTurnAttackBuffs: Buff[],
+        percentageLeaderAttack: number,
+        flatLeaderAttack: number,
         attackEffectiveToAll: boolean,
         criticalChance: number,
         currentKi: number,
@@ -95,7 +113,12 @@ export interface Character {
         kiSphereBuffs: any[],
         SABuffs: Buff[],
         disableGuard: boolean,
-        superAttackDetails: any,
+        attackDetails: any,
+        collectedKiSpheres: KiSpheres,
+        additionalAttacks: string[],
+        attackModifier: number,
+        currentAttack: number,
+
     },
     battleStats: {
         appearances: number,
@@ -110,14 +133,21 @@ export interface Character {
     },
 }
 
+export interface Link {
+    name: string,
+    level?: number,
+    linkFunction: (character: Character) => void,
+}
+
 export class CharacterBuilder {
     private readonly _character: Character;
 
-    constructor(name: string, title: string, type: Type, baseAttack: number, maxKi: number, superAttacks: SuperAttack[], twelveKiMultiplier: number) {
+    constructor(name: string, title: string, type: Type, givenClass: Class, baseAttack: number, maxKi: number, superAttacks: SuperAttack[], twelveKiMultiplier: number) {
         this._character = {
             name: name,
             title: title,
             type: type, // Accept strings?
+            class: givenClass,
             baseAttack: baseAttack,
             maxKi: maxKi,
             categories: [],
@@ -129,10 +159,12 @@ export class CharacterBuilder {
             twelveKiMultiplier: twelveKiMultiplier,
             startOfTurn: (gameState: GameState): void => { },
             collectKiSpheres: (kiSpheres: KiSpheres, gameState: GameState): void => { },
-            passiveAdditionalAttacks: (gameState: GameState): string[] => { return [] },
+            passiveAdditionalAttacks: (gameState: GameState): void => { },
             onAttack: () => { },
             turnStats: {
                 percentageStartOfTurnAttackBuffs: [],
+                percentageLeaderAttack: 0,
+                flatLeaderAttack: 0,
                 attackEffectiveToAll: false,
                 criticalChance: 0,
                 currentKi: 0,
@@ -143,7 +175,11 @@ export class CharacterBuilder {
                 kiSphereBuffs: [],
                 SABuffs: [],
                 disableGuard: false,
-                superAttackDetails: "",
+                attackDetails: "",
+                collectedKiSpheres: { TEQ: 0, AGL: 0, STR: 0, PHY: 0, INT: 0, RBW: 0 },
+                additionalAttacks: [],
+                attackModifier: 0,
+                currentAttack: 0,
             },
             battleStats: {
                 appearances: 0,
@@ -198,15 +234,27 @@ export class CharacterBuilder {
         return this;
     }
 
-    links(links: string[]): CharacterBuilder {
+    links(links: Link[]): CharacterBuilder {
         this._character.links = links;
         return this;
     }
 
-    startOfTurn(startOfTurnPassiveFunction: any): CharacterBuilder {
+    startOfTurn(startOfTurnPassiveFunction: (gameState: GameState) => void): CharacterBuilder {
         this._character.startOfTurn = startOfTurnPassiveFunction;
         return this;
     }
+
+    collectKiSpheres(collectKiSpheresFunction: (kiSpheres: KiSpheres, gameState: GameState) => void): CharacterBuilder {
+        this._character.collectKiSpheres = collectKiSpheresFunction;
+        return this;
+    }
+
+    passiveAdditionalAttacks(passiveAdditionalAttacksFunction: (gameState: GameState) => void): CharacterBuilder {
+        this._character.passiveAdditionalAttacks = passiveAdditionalAttacksFunction;
+        return this;
+    }
+
+    onAttack() { }
 
     build(): Character {
         return this._character;

@@ -1,12 +1,12 @@
 import { DokkanSimulator } from '../src/dokkanSimulator';
-import { Character, CharacterBuilder, SimConfiguration, KiSpheres, Type, GameState, SimConfigurationBuilder } from '../src/types';
+import { Character, CharacterBuilder, SimConfiguration, KiSpheres, Type, GameState, SimConfigurationBuilder, Class } from '../src/types';
 import { equal, strictEqual } from "assert";
 
 let baseCharacter: Character;
 let config: SimConfiguration;
 
 beforeEach(function () {
-    baseCharacter = new CharacterBuilder("Test", "Title", Type.TEQ, 10000, 12, [], 1)
+    baseCharacter = new CharacterBuilder("Test", "Title", Type.TEQ, Class.Super, 10000, 12, [], 1)
         .build()
     config = new SimConfigurationBuilder()
         .appearances(3)
@@ -28,7 +28,7 @@ describe('Single Character Simulation', function () {
     });
 
     it('should modify attack by the percentage leaderskills', function () {
-        config.leaderSkill1 = (char: any) => {
+        config.leaderSkill1 = (char: any, gameState: GameState) => {
             char.turnStats.percentageLeaderAttack += 1.7;
         }
         config.leaderSkill2 = (char: any) => {
@@ -39,10 +39,10 @@ describe('Single Character Simulation', function () {
     });
 
     it('should modify attack by the flat and percentage leaderskills', function () {
-        config.leaderSkill1 = (char: any) => {
+        config.leaderSkill1 = (char: any, gameState: GameState) => {
             char.turnStats.flatLeaderAttack += 30000;
         }
-        config.leaderSkill2 = (char: any) => {
+        config.leaderSkill2 = (char: any, gameState: GameState) => {
             char.turnStats.percentageLeaderAttack += 1.7;
         }
         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
@@ -69,8 +69,8 @@ describe('Single Character Simulation', function () {
     });
 
     it('should modify attack by percentage at the start of turn for a set amount of turns, then expire', function () {
-        baseCharacter.startOfTurn = function (gamestate: GameState) {
-            if (baseCharacter.battleStats.appearances === 1) {
+        baseCharacter.startOfTurn = function (this: Character, gamestate: GameState) {
+            if (this.battleStats.appearances === 1) {
                 this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.5, turnBuffExpires: 2 });
             }
         }
@@ -81,7 +81,7 @@ describe('Single Character Simulation', function () {
     });
 
     it('should modify attack by leaderskills AND start of turn passives', function () {
-        config.leaderSkill1 = function (char: any) {
+        config.leaderSkill1 = function (char: Character, gameState: GameState) {
             // 27,000
             char.turnStats.percentageLeaderAttack += 1.7;
             // 32,000
@@ -147,12 +147,19 @@ describe('Single Character Simulation', function () {
     it('should have attack modified by the active links', function () {
         baseCharacter.links = [
             {
-                "Super Saiyan": function (char: any) {
+                name: "Super Saiyan",
+                linkFunction: function (char: any) {
                     char.turnStats.percentageLinksAttack += 0.1
                 }
             },
-            { "Saiyan Roar": function (char: any) { char.turnStats.percentageLinksAttack += 0.25 } },
-            { "Prepared for Battle": function (char: any) { char.turnStats.percentageLinksAttack += 0.3 } },
+            {
+                name: "Saiyan Roar",
+                linkFunction: function (char: any) { char.turnStats.percentageLinksAttack += 0.25 }
+            },
+            {
+                name: "Prepared for Battle",
+                linkFunction: function (char: any) { char.turnStats.percentageLinksAttack += 0.3 }
+            },
         ]
         config.activeLinks = ["Super Saiyan", "Saiyan Roar"]
 
@@ -233,7 +240,7 @@ describe('Single Character Simulation', function () {
     });
 
     it('should have attack modified by multiple: (Leader skills, Start of Turn, Links, Ki Multiplier, SA modifier)', function () {
-        config.leaderSkill1 = function (char: any) {
+        config.leaderSkill1 = function (char: Character, gameState: GameState) {
             char.turnStats.percentageLeaderAttack += 2;
             return char
         }
@@ -248,9 +255,9 @@ describe('Single Character Simulation', function () {
             this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.5, turnBuffExpires: 1 })
         }
         baseCharacter.links = [
-            { "Super Saiyan": function (char: any) { char.turnStats.percentageLinksAttack += 0.1 } },
-            { "Saiyan Roar": function (char: any) { char.turnStats.percentageLinksAttack += 0.25 } },
-            { "Prepared for Battle": function (char: any) { char.turnStats.percentageLinksAttack += 0.3 } },
+            { name: "Super Saiyan", linkFunction: function (char: any) { char.turnStats.percentageLinksAttack += 0.1 } },
+            { name: "Saiyan Roar", linkFunction: function (char: any) { char.turnStats.percentageLinksAttack += 0.25 } },
+            { name: "Prepared for Battle", linkFunction: function (char: any) { char.turnStats.percentageLinksAttack += 0.3 } },
         ]
         baseCharacter.twelveKiMultiplier = 1.5;
         baseCharacter.ki100PercentThreshold = 4;
@@ -273,14 +280,13 @@ describe('Single Character Simulation', function () {
 
     it('should do additional attacks from passive', function () {
         baseCharacter.passiveAdditionalAttacks = function (gameState: GameState) {
-            let answer: string[] = ["normal", "super"]
-            return answer;
+            this.turnStats.additionalAttacks.push("normal", "super")
         }
 
         baseCharacter.superAttacks = [
             {
                 kiThreshold: 12,
-                multiplier: 0.5,
+                multiplier: 0.6,
             },
             {
                 kiThreshold: 11,
@@ -295,7 +301,8 @@ describe('Single Character Simulation', function () {
         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
 
         // @ts-ignore
-        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[1], 15000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 16000);
+        equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[1], 10000);
         // @ts-ignore
         equal(Object.values(Object.entries(result.turnData)[0][1].attacks)[2], 14000);
     });
@@ -343,33 +350,51 @@ describe('Single Character Simulation', function () {
     });
 
     it('match attack scenario character - TEQ LR Gods', function () {
-        baseCharacter.baseAttack = 21075;
-        baseCharacter.startOfTurn = function (gameState: GameState) {
-            if (this.battleStats.appearances === 1) {
-                this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.77, turnBuffExpires: gameState.turn + 7 });
-            }
-            this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 1.2, turnBuffExpires: false });
-        }
-        baseCharacter.collectKiSpheres = function (collectedKiSpheres: KiSpheres, gameState: GameState) {
-            this.turnStats.criticalChance += collectedKiSpheres.RBW * 0.07
-            if (this.battleStats.appearances === 1) {
-                this.turnStats.kiSphereBuffs.push({ amount: 1, turnBuffExpires: gameState.turn + 1, types: ["TEQ", "AGL", "STR", "PHY", "INT"] }) // Use Type.TEQ etc?
-            }
-            this.turnStats.kiSphereBuffs.push({ amount: 1, turnBuffExpires: 99, types: ["TEQ", "AGL", "STR", "PHY", "INT"] }) // Use Type.TEQ etc?
+        let baseChar: Character = new CharacterBuilder("Super Saiyan God Goku & Super Saiyan God Vegeta", "Divine Warriors with Infinite Power", Type.TEQ, Class.Super, 22075, 24, [{
+            kiThreshold: 12,
+            multiplier: 4.25,
+            attackBuff: {},
+            extraCritChance: 0,
+            disableGuard: false,
+            stun: {},
+            seal: {},
+            effectiveAgainstAll: false,
+            debuffTargetDEF: {}
 
-        }
-        baseCharacter.passiveAdditionalAttacks = function (gameState: GameState) {
-            if (this.turnStats.currentKi > 19) {
-                return ["super"]
-            }
-            return []
-        };
-        baseCharacter.onAttack = function (gameState: GameState) {
+        },
+        {
+            kiThreshold: 18,
+            multiplier: 5.7,
+        }], 1.6)
+            .startOfTurn(function (this: Character, gameState: GameState) {
+                if (this.battleStats.appearances === 1) {
+                    this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 0.77, turnBuffExpires: gameState.turn + 7 });
+                }
+                this.turnStats.percentageStartOfTurnAttackBuffs.push({ amount: 1.2, turnBuffExpires: false });
+            })
+            .collectKiSpheres(function (this: Character, collectedKiSpheres: KiSpheres, gameState: GameState) {
+
+                this.turnStats.criticalChance += collectedKiSpheres.RBW * 1.07
+                if (this.battleStats.appearances === 1) {
+                    this.turnStats.kiSphereBuffs.push({ amount: 1, turnBuffExpires: gameState.turn + 1, types: ["TEQ", "AGL", "STR", "PHY", "INT"] }) // Use Type.TEQ etc?
+                }
+                this.turnStats.kiSphereBuffs.push({ amount: 1, turnBuffExpires: 99, types: ["TEQ", "AGL", "STR", "PHY", "INT"] }) // Use Type.TEQ etc?
+
+            })
+            .passiveAdditionalAttacks(function (this: Character, gameState: GameState) {
+                if (this.turnStats.currentKi > 19) {
+                    return ["super"]
+                }
+                return []
+            })
+            .build()
+
+        baseChar.onAttack = function (gameState: GameState) {
             if (this.turnStats.currentKi === 24) {
                 this.turnStats.attackEffectiveToAll = true;
             }
         };
-        baseCharacter.superAttacks = [
+        baseChar.superAttacks = [
             {
                 kiThreshold: 12,
                 multiplier: 4.25,
@@ -380,7 +405,6 @@ describe('Single Character Simulation', function () {
                 seal: {},
                 effectiveAgainstAll: false,
                 debuffTargetDEF: {}
-
             },
             {
                 kiThreshold: 18,
@@ -388,19 +412,19 @@ describe('Single Character Simulation', function () {
             }
         ]
         config.appearances = 5;
-        let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
+        let result = DokkanSimulator.singleCharacterSimulation(baseChar, config)
         if (Object.values(Object.entries(result.turnData)[0][1].attacks)[1]) {
             // Crit
-            strictEqual(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 117360);
+            strictEqual(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 147513);
         } else {
-            strictEqual(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 62592);
+            strictEqual(Object.values(Object.entries(result.turnData)[0][1].attacks)[0], 78674);
         }
 
         if (Object.values(Object.entries(result.turnData)[4][1].attacks)[1]) {
             // Crit
-            strictEqual(Object.values(Object.entries(result.turnData)[4][1].attacks)[0], 86934);
+            strictEqual(Object.values(Object.entries(result.turnData)[4][1].attacks)[0], 109271);
         } else {
-            strictEqual(Object.values(Object.entries(result.turnData)[4][1].attacks)[0], 46365);
+            strictEqual(Object.values(Object.entries(result.turnData)[4][1].attacks)[0], 58278);
         }
     });
 
