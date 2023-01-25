@@ -17,16 +17,11 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16.x
+          registry-url: 'https://registry.npmjs.org'
       - name: npm install, test, build
         run: |
           npm install
           npm test
-
-
-      - name: Publish to npm
-        with:
-          node-version: '16.x'
-          registry-url: 'https://registry.npmjs.org'
-        run: npm publish --access public
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
