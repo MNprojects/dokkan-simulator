@@ -274,10 +274,11 @@ describe('Single Character Simulation', function () {
         strictEqual(result.turnData[1].attacks[0].attack, 223255);
     });
 
-    it('should do an additional attack', function () {
+    it('should do a hidden potential additional attack', function () {
         baseCharacter.additionalAttackChance = 1;
         let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
         strictEqual(result.turnData[1].attacks[1].attack, 10000);
+        strictEqual(result.summary.decimalOfTurnsWithAdditional, 1);
     });
 
     it('should do additional attacks from passive', function () {
@@ -394,7 +395,6 @@ describe('Single Character Simulation', function () {
 
         config.appearances = 5;
         let result = DokkanSimulator.singleCharacterSimulation(baseChar, config)
-        console.log(result.summary);
 
         if (result.turnData[1].attacks[0].critical) {
             // Crit
@@ -409,6 +409,48 @@ describe('Single Character Simulation', function () {
         } else {
             strictEqual(result.turnData[4].attacks[0].attack, 58278);
         }
+    });
+
+    it('should use a unit super attack when conditions are met', function () {
+        baseCharacter.superAttacks = [
+            {
+                kiThreshold: 12,
+                multiplier: 1.5,
+            },
+            {
+                kiThreshold: 12,
+                multiplier: 1.7,
+                conditions: function (baseCharacter: Character, gameState: GameState) {
+                    return true
+                },
+            }
+        ]
+        baseCharacter.startOfTurn = function () {
+            this.turnStats.currentKi += 12;
+        }
+        let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
+        strictEqual(result.turnData[1].attacks[0].attack, 27000);
+    });
+
+    it('should not use a unit super attack when conditions are not met', function () {
+        baseCharacter.superAttacks = [
+            {
+                kiThreshold: 12,
+                multiplier: 1.5,
+            },
+            {
+                kiThreshold: 12,
+                multiplier: 1.7,
+                conditions: function (baseCharacter: Character, gameState: GameState) {
+                    return false
+                },
+            }
+        ]
+        baseCharacter.startOfTurn = function () {
+            this.turnStats.currentKi += 12;
+        }
+        let result = DokkanSimulator.singleCharacterSimulation(baseCharacter, config)
+        strictEqual(result.turnData[1].attacks[0].attack, 25000);
     });
 
 });

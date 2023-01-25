@@ -52,12 +52,11 @@ export interface SimConfiguration {
     setKiSpheresEveryTurn?: KiSpheres,
 }
 
-
 export interface SimResults {
     summary: {
         averageAttackPerTurn: number,
-        percentageOfAttackThatCrit: number,
-        percentageOfTurnsWithAdditional: number,
+        decimalOfAttacksThatCrit: number,
+        decimalOfTurnsWithAdditional: number,
     },
     turnData: TurnData[],
     team: Object,
@@ -74,7 +73,8 @@ export interface TurnData {
 export interface AttackResult {
     count: number,
     attack: number,
-    critical: boolean
+    critical: boolean,
+    additional?: boolean,
 }
 
 export enum Type {
@@ -94,8 +94,8 @@ export interface SuperAttack {
     stun?: {},
     seal?: {},
     effectiveAgainstAll?: boolean,
-    debuffTargetDEF?: {}
-    // TODO: Conditions i.e., unit super attack
+    debuffTargetDEF?: {},
+    conditions?: (character: Character, gameState: GameState) => boolean,
 }
 
 export interface Character {

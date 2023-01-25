@@ -23,8 +23,8 @@ export abstract class DokkanSimulator {
         let results: SimResults = {
             summary: {
                 averageAttackPerTurn: 0,
-                percentageOfAttackThatCrit: 0,
-                percentageOfTurnsWithAdditional: 0
+                decimalOfAttacksThatCrit: 0,
+                decimalOfTurnsWithAdditional: 0
             },
             turnData: [], team: {}, config: {}
         }
@@ -59,6 +59,7 @@ export abstract class DokkanSimulator {
 
                 // Attack loop
                 let attackCount = 1;
+
                 // TODO: refactor to a single attack loop rather than all this additionals work
                 simCharacter.passiveAdditionalAttacks(gameState)
                 let [attack, critical] = attackLoop(simCharacter, configOptions, collectedKiSpheres, gameState);
@@ -80,23 +81,16 @@ export abstract class DokkanSimulator {
                     attackCount++
                     turn.attacks.push({ count: 1, attack: attack, critical: critical })
                 });
+
+                if (additional !== undefined) {
+                    turn.attacks[turn.attacks.length - 1].additional = true
+                }
                 results.turnData.push(turn)
             }
         }
-        let attackPerTurn: number = 0;
-        // Object.values(turns).forEach(turn => {
-        //     console.log(turn);
 
-        //     // console.log(Object.values(Object(turn)));
-        //     // attackPerTurn += 
 
-        // })
-
-        results.summary = {
-            averageAttackPerTurn: attackPerTurn,
-            percentageOfAttackThatCrit: 0,
-            percentageOfTurnsWithAdditional: 0
-        }
+        results.summary = calculateSummary(results)
         return results
     }
 }
@@ -130,7 +124,7 @@ function attackLoop(simCharacter: Character, configOptions: SimConfiguration, co
 
     // SA multiplier
     // SA - based ATK increases are factored in here as flat additions to the SA multiplier
-    simCharacter.turnStats.attackDetails = setAttackDetails(simCharacter, superAdditional!);
+    simCharacter.turnStats.attackDetails = setAttackDetails(simCharacter, gameState, superAdditional!);
     superAttackEffects(simCharacter.turnStats.attackDetails, simCharacter);
     simCharacter.turnStats.attackModifier = calculateAttackModifier(simCharacter, configOptions)
     simCharacter.turnStats.currentAttack = calculateCurrentAttack(simCharacter, configOptions);
@@ -192,6 +186,23 @@ function resetTurnStats(character: any) {
     }
 }
 
+function calculateSummary(results: SimResults) {
+    let totalAttack = 0;
+    let attackCount = 0;
+    let critCount = 0;
+    let additionalCount = 0;
+    results.turnData.forEach(turn => {
+        totalAttack += turn.attacks.reduce((accumulator, currentValue) => accumulator + currentValue.attack, 0)
+        attackCount += turn.attacks.length
+        critCount += turn.attacks.reduce((acc, cur) => acc + (cur.critical ? 1 : 0), 0)
+        additionalCount += turn.attacks.filter(attack => attack.additional === true).length > 0 ? 1 : 0
+    });
+    return {
+        averageAttackPerTurn: totalAttack / attackCount,
+        decimalOfAttacksThatCrit: critCount / attackCount,
+        decimalOfTurnsWithAdditional: additionalCount / results.turnData.length,
+    }
+}
 
 function validateConfig(config: SimConfiguration) {
     let errorMessages = "";
@@ -211,8 +222,6 @@ function validateConfig(config: SimConfiguration) {
 }
 
 // doesn't account for candies etc
-
-
 // standard rules that are true for every character
 function collectKiSpheres(character: Character, kiSpheres: KiSpheres) {
     let kiBoost = 0;
@@ -228,9 +237,6 @@ function collectKiSpheres(character: Character, kiSpheres: KiSpheres) {
         character.turnStats.currentKi += kiBoost;
     }
 }
-
-
-
 
 function activateLinks(character: any, activeLinks: string[]) {
     character.links.forEach((link: any) => {
@@ -274,8 +280,6 @@ function calculateCurrentAttack(simCharacter: any, config: SimConfiguration): nu
     return attackAfterModifier
 }
 
-
-
 function findBestKiSphereCollection(simCharacter: any, simConfig: SimConfiguration): KiSpheres {
     if (simConfig.setKiSpheresEveryTurn) {
         return simConfig.setKiSpheresEveryTurn
@@ -289,19 +293,19 @@ function applyConfigPassives(configOptions: SimConfiguration, simCharacter: any)
     simCharacter.turnStats.percentageKiSphereAttack = configOptions.percentageObtainKiSphereAttack
     simCharacter.turnStats.flatKiSphereAttack = configOptions.flatObtainKiSphereAttack
 }
-// TODO: builder pattern for config and character?
 
-function setAttackDetails(simChar: any, superAdditional?: boolean) {
+function setAttackDetails(simChar: any, gameState: GameState, superAdditional?: boolean) {
     let highestSANum = 0;
     let saDetails;
-
     // If it is an additional super attack, then the SA with the lowest ki threshold is chosen
     if (superAdditional === true) {
         highestSANum = 24
         simChar.superAttacks.forEach((superAttack: any) => {
             if (simChar.turnStats.currentKi >= superAttack.kiThreshold && superAttack.kiThreshold <= highestSANum) {
+                // if (superAttack.conditions(simChar, gameState) || superAttack.conditions !== null) {
                 highestSANum = superAttack.kiThreshold;
                 saDetails = superAttack
+                // }
             }
         });
     }
@@ -309,19 +313,19 @@ function setAttackDetails(simChar: any, superAdditional?: boolean) {
     else if (superAdditional === undefined) {
         simChar.superAttacks.forEach((superAttack: any) => {
             if (simChar.turnStats.currentKi >= superAttack.kiThreshold && superAttack.kiThreshold >= highestSANum) {
-                highestSANum = superAttack.kiThreshold;
-                saDetails = superAttack
+                if (superAttack.conditions === undefined || superAttack.conditions(simChar, gameState)) {
+                    highestSANum = superAttack.kiThreshold;
+                    saDetails = superAttack
+                }
             }
         });
     }
-
     // if no Ki threshold is reached or additional normal attacks
     if (saDetails === undefined) {
         saDetails = {
             multiplier: 0
         }
     }
-
     return saDetails;
 }
 
@@ -374,5 +378,4 @@ function calculateKiMultiplier(simChar: Character): number {
         let kiMultiplier = 1 + ((simChar.turnStats.currentKi - simChar.ki100PercentThreshold) * multiplierPerKi)
         return kiMultiplier
     }
-
 }
