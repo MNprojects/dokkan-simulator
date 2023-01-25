@@ -2,7 +2,11 @@
   "name": "dokkan-simulator",
   "version": "1.0.0",
   "description": "A package that simulates character performance within the Dragon Ball Z Dokkan Battle mobile game.",
-  "main": "index.js",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
   "scripts": {
     "test": "mocha",
     "build": "tsc"
